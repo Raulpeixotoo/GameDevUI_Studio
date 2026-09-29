@@ -74,7 +74,7 @@ export async function launch(name, port) {
   // O 'load' da página repovoa a cena (autosave ou demo): espera terminar antes de mexer.
   const waitReady = async (settleMs = 1200) => {
     for (let i = 0; i < 150; i++) {
-      try { if (await evaluate('document.readyState === "complete" && typeof Studio !== "undefined" && Studio.getAll().length > 0')) break; } catch {}
+      try { if (await evaluate('document.readyState === "complete" && window.studioReady === true && Studio.getAll().length > 0')) break; } catch {}
       await sleep(200);
     }
     await sleep(settleMs);

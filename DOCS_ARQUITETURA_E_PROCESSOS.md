@@ -118,6 +118,13 @@ Uma imagem de referência (mockup) fica atrás da cena, com opacidade ajustável
 | Ctrl+Enter (na bancada) | Executar script |
 | Esc (na bancada) | Fechar a bancada |
 
+### 1.9 Cena de boas-vindas (R6)
+- **Quando abre:** primeira visita (sem autosave). Guia rápido, mini-HUD de RPG e mostruário de peças, em 4 grupos, com o fundo trancado.
+- **Idioma:** o padrão do app agora é PT (antes seguia o navegador). Trocar PT ⇄ EN refaz a cena no outro idioma **enquanto ninguém mexeu nela** (assinatura em `game_dev_ui_studio_welcome` no localStorage). Depois de editada, a troca só muda a interface.
+- **Código:** `welcomeSceneScript(Studio)`, que usa só a API `Studio`. O preset **👋 Boas-vindas** da Bancada mostra o corpo dessa função, então editar num lugar atualiza os dois.
+- **Desempenho:** a montagem roda com `renderSuspended` (sem redesenho por peça) e um `refreshAll()` no fim: de ~900 ms para ~40 ms. Ctrl+Z não desmonta a cena inicial.
+- **Testes:** `window.studioReady` indica cena pronta (o `harness.mjs` espera por ele); suíte `tests/test-welcome-scene.mjs`.
+
 ---
 
 ## 2. Arquitetura Técnica & Estado (TDD)
