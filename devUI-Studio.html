@@ -4,6 +4,9 @@
   Licença: GNU Affero General Public License v3.0 (AGPL-3.0). Texto completo no arquivo LICENSE.
   Você pode usar, modificar e redistribuir; versões modificadas (inclusive servidas pela web)
   precisam manter a mesma licença e disponibilizar o código-fonte.
+
+  O devUI-Studio.html é GERADO por "node tools/build.mjs" a partir de src/ (shell, css, html e js).
+  Para mudar o app, edite src/ e rode o build; editar o HTML gerado à mão é desfeito no próximo build.
 -->
 <html lang="pt-BR">
 <head>
@@ -12,8 +15,7 @@
   <title>Game Dev UI Studio - 1920x1080 Figma UI Builder</title>
   <meta name="description" content="Editor de UI para jogos no navegador: 9-slice, exportação para Unity, Unreal e Godot em 1080p.">
 
-  <!-- Tailwind CSS CDN (Play CDN: gera o CSS no navegador, não aceita SRI) -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind: CSS compilado e embutido no fim do <head> (tools/build-css.mjs). Sem script de CDN desde a R7. -->
   <!-- JSZip CDN for ZIP packaging (SRI: se o arquivo do CDN mudar, o navegador recusa) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-XMVd28F1oH/O71fzwBnV7HucLxVwtxf26XV8P4wPk26EDxuGZ91N8bsOttmnomcCD3CS5ZMRL50H0GgOHvegtg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
@@ -23,38 +25,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- Fontes de jogo para a ferramenta de Texto (desenhadas no canvas e exportadas no PNG) -->
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Oswald:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&family=Cinzel:wght@400;500;600;700&family=Teko:wght@300;400;500;600;700&family=Exo+2:wght@300;400;500;600;700&family=Roboto+Condensed:wght@300;400;500;600;700&family=Bebas+Neue&family=Press+Start+2P&family=Russo+One&display=swap" rel="stylesheet">
-
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
-          colors: {
-            figma: {
-              bg: '#141416',
-              viewport: '#19191d',
-              panel: '#1e1e24',
-              panelDark: '#16161a',
-              hover: '#282832',
-              border: '#2e2e38',
-              borderLight: '#3f3f4e',
-              accent: '#0d99ff',
-              accentHover: '#0085e6',
-              text: '#f3f4f6',
-              muted: '#9ca3af',
-              danger: '#f43f5e',
-              success: '#10b981',
-              warning: '#f59e0b'
-            }
-          }
-        }
-      }
-    };
-  </script>
 
   <style>
     * { box-sizing: border-box; }
@@ -173,166 +143,207 @@
     .ruler-guide.h { left: 0; right: 0; height: calc(1px * var(--inv-zoom, 1)); cursor: row-resize; }
     .ruler-guide::after { content: ''; position: absolute; inset: calc(-4px * var(--inv-zoom, 1)); }
     #snapLinesLayer line { stroke: #ff2bd6; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .panel-resizer { position: absolute; top: 0; bottom: 0; left: -4px; width: 8px; cursor: col-resize; touch-action: none; }
+    .panel-resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: transparent; transition: background-color .12s; }
+    .panel-resizer:hover::after, .panel-resizer.dragging::after, .panel-resizer:focus-visible::after { background: #0d99ff; }
+    .panel-resizer:focus-visible { outline: none; }
+    body.resizing-panels, body.resizing-panels * { cursor: col-resize !important; }
+    .safe-band { position: absolute; background: repeating-linear-gradient(45deg, rgba(244, 63, 94, .22) 0 calc(6px * var(--inv-zoom, 1)), rgba(244, 63, 94, .08) 0 calc(12px * var(--inv-zoom, 1))); }
+    #safeAreaRect { border: calc(1px * var(--inv-zoom, 1)) dashed rgba(251, 113, 133, .9); }
+
+    /* Barra superior (R7): 3 zonas em grid, grupos com a mesma altura e botões de ícone uniformes. */
+    #topBar { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); }
+    .tb-group { display: flex; align-items: center; gap: 2px; height: 32px; padding: 2px; background: #16161a; border: 1px solid #2e2e38; border-radius: 8px; flex-shrink: 0; }
+    .tb-btn { height: 26px; min-width: 26px; padding: 0 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; color: #a1a1aa; font-size: 12px; font-weight: 500; white-space: nowrap; transition: background-color .12s, color .12s; }
+    .tb-btn:hover { background: #282832; color: #fff; }
+    .tb-btn:disabled { opacity: .3; pointer-events: none; }
+    .tb-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .tb-btn.text-figma-accent { color: #0d99ff; }
+    .tb-sep { width: 1px; height: 16px; background: #2e2e38; margin: 0 3px; flex-shrink: 0; }
+    .tb-select { height: 26px; padding: 0 4px; border-radius: 6px; background: transparent; color: #d4d4d8; font-family: 'JetBrains Mono', monospace; font-size: 11px; cursor: pointer; outline: none; }
+    .tb-select:hover { background: #282832; color: #fff; }
+    .tb-select option { background: #1e1e24; color: #e4e4e7; }
+    .tb-label { color: #71717a; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding-left: 4px; }
+    #exportMenu .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border-radius: 6px; text-align: left; color: #e4e4e7; font-size: 12px; }
+    #exportMenu .menu-item:hover { background: #282832; }
+    #exportMenu .menu-item svg { width: 16px; height: 16px; flex-shrink: 0; color: #a1a1aa; }
+    #exportMenu .menu-item small { display: block; color: #71717a; font-size: 10.5px; margin-top: 1px; }
   </style>
+
+  <!-- CSS do Tailwind v3 gerado por "node tools/build-css.mjs" (não edite o bloco à mão). Fica por último
+       no <head>, na mesma posição em que o Play CDN injetava o dele, para a cascata não mudar. -->
+  <!-- tailwind:start -->
+  <style id="tailwind-css">*,:after,:before{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgba(59,130,246,.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/*! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com*/*,:after,:before{box-sizing:border-box;border:0 solid #e5e7eb}:after,:before{--tw-content:""}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;-o-tab-size:4;tab-size:4;font-family:Inter,sans-serif;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:JetBrains Mono,monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0}fieldset,legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::-moz-placeholder,textarea::-moz-placeholder{opacity:1;color:#9ca3af}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.pointer-events-none{pointer-events:none}.pointer-events-auto{pointer-events:auto}.\!visible{visibility:visible!important}.visible{visibility:visible}.static{position:static}.fixed{position:fixed}.absolute{position:absolute}.\!relative{position:relative!important}.relative{position:relative}.sticky{position:sticky}.inset-0{inset:0}.-bottom-2{bottom:-.5rem}.-bottom-7{bottom:-1.75rem}.-left-2{left:-.5rem}.-right-2{right:-.5rem}.-top-12{top:-3rem}.-top-2{top:-.5rem}.-top-3{top:-.75rem}.-top-9{top:-2.25rem}.bottom-0{bottom:0}.bottom-3{bottom:.75rem}.bottom-5{bottom:1.25rem}.left-0{left:0}.left-1\/2{left:50%}.left-5{left:1.25rem}.left-8{left:2rem}.right-0{right:0}.right-5{right:1.25rem}.top-0{top:0}.top-1\/2{top:50%}.top-5{top:1.25rem}.z-10{z-index:10}.z-20{z-index:20}.z-30{z-index:30}.z-40{z-index:40}.z-50{z-index:50}.z-\[12\]{z-index:12}.z-\[13\]{z-index:13}.z-\[24\]{z-index:24}.z-\[26\]{z-index:26}.z-\[27\]{z-index:27}.z-\[35\]{z-index:35}.-mx-3{margin-left:-.75rem;margin-right:-.75rem}.mx-3{margin-left:.75rem;margin-right:.75rem}.my-0\.5{margin-top:.125rem;margin-bottom:.125rem}.my-1{margin-top:.25rem;margin-bottom:.25rem}.-mt-3{margin-top:-.75rem}.mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.ml-3{margin-left:.75rem}.ml-auto{margin-left:auto}.mr-0\.5{margin-right:.125rem}.mr-1{margin-right:.25rem}.mr-2{margin-right:.5rem}.mt-1{margin-top:.25rem}.mt-3{margin-top:.75rem}.block{display:block}.inline-block{display:inline-block}.inline{display:inline}.flex{display:flex}.inline-flex{display:inline-flex}.grid{display:grid}.hidden{display:none}.h-1{height:.25rem}.h-11{height:2.75rem}.h-2{height:.5rem}.h-3{height:.75rem}.h-3\.5{height:.875rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-7{height:1.75rem}.h-8{height:2rem}.h-\[1px\]{height:1px}.h-\[calc\(100\%-1\.25rem\)\]{height:calc(100% - 1.25rem)}.h-full{height:100%}.h-screen{height:100vh}.max-h-36{max-height:9rem}.max-h-\[90vh\]{max-height:90vh}.min-h-0{min-height:0}.min-h-\[200px\]{min-height:200px}.w-0{width:0}.w-11{width:2.75rem}.w-2{width:.5rem}.w-3{width:.75rem}.w-3\.5{width:.875rem}.w-4{width:1rem}.w-44{width:11rem}.w-5{width:1.25rem}.w-64{width:16rem}.w-7{width:1.75rem}.w-80{width:20rem}.w-\[1px\]{width:1px}.w-\[2px\]{width:2px}.w-\[calc\(100\%-1\.25rem\)\]{width:calc(100% - 1.25rem)}.w-full{width:100%}.min-w-0{min-width:0}.max-w-4xl{max-width:56rem}.flex-1{flex:1 1 0%}.flex-shrink{flex-shrink:1}.shrink-0{flex-shrink:0}.grow{flex-grow:1}.origin-center{transform-origin:center}.-translate-x-1\/2{--tw-translate-x:-50%}.-translate-x-1\/2,.-translate-y-1\/2{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.-translate-y-1\/2{--tw-translate-y:-50%}.translate-y-16{--tw-translate-y:4rem}.transform,.translate-y-16{transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-col-resize{cursor:col-resize}.cursor-default{cursor:default}.cursor-ew-resize{cursor:ew-resize}.cursor-grab{cursor:grab}.cursor-nesw-resize{cursor:nesw-resize}.cursor-ns-resize{cursor:ns-resize}.cursor-nwse-resize{cursor:nwse-resize}.cursor-pointer{cursor:pointer}.cursor-row-resize{cursor:row-resize}.select-none{-webkit-user-select:none;-moz-user-select:none;user-select:none}.resize-none{resize:none}.resize-y{resize:vertical}.resize{resize:both}.appearance-none{-webkit-appearance:none;-moz-appearance:none;appearance:none}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid-cols-\[1fr_auto\]{grid-template-columns:1fr auto}.grid-cols-\[5\.5rem_1fr\]{grid-template-columns:5.5rem 1fr}.flex-col{flex-direction:column}.flex-wrap{flex-wrap:wrap}.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-0\.5{gap:.125rem}.gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-2\.5{gap:.625rem}.gap-3{gap:.75rem}.space-y-0\.5>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.125rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.125rem*var(--tw-space-y-reverse))}.space-y-1>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.25rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.25rem*var(--tw-space-y-reverse))}.space-y-2>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.5rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.5rem*var(--tw-space-y-reverse))}.space-y-2\.5>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(.625rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(.625rem*var(--tw-space-y-reverse))}.space-y-4>:not([hidden])~:not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem*(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem*var(--tw-space-y-reverse))}.justify-self-start{justify-self:start}.justify-self-end{justify-self:end}.justify-self-center{justify-self:center}.overflow-hidden{overflow:hidden}.overflow-visible{overflow:visible}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.truncate{overflow:hidden;text-overflow:ellipsis}.truncate,.whitespace-nowrap{white-space:nowrap}.whitespace-pre-wrap{white-space:pre-wrap}.break-words{overflow-wrap:break-word}.rounded{border-radius:.25rem}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:.5rem}.rounded-md{border-radius:.375rem}.rounded-sm{border-radius:.125rem}.rounded-xl{border-radius:.75rem}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-b-2{border-bottom-width:2px}.border-l{border-left-width:1px}.border-l-2{border-left-width:2px}.border-r{border-right-width:1px}.border-r-2{border-right-width:2px}.border-t{border-top-width:1px}.border-t-2{border-top-width:2px}.border-dashed{border-style:dashed}.border-amber-400{--tw-border-opacity:1;border-color:rgb(251 191 36/var(--tw-border-opacity,1))}.border-amber-400\/80{border-color:rgba(251,191,36,.8)}.border-amber-500\/30{border-color:rgba(245,158,11,.3)}.border-amber-500\/40{border-color:rgba(245,158,11,.4)}.border-amber-500\/50{border-color:rgba(245,158,11,.5)}.border-amber-600\/60{border-color:rgba(217,119,6,.6)}.border-emerald-700\/60{border-color:rgba(4,120,87,.6)}.border-figma-accent{--tw-border-opacity:1;border-color:rgb(13 153 255/var(--tw-border-opacity,1))}.border-figma-accent\/30{border-color:rgba(13,153,255,.3)}.border-figma-border{--tw-border-opacity:1;border-color:rgb(46 46 56/var(--tw-border-opacity,1))}.border-figma-border\/60{border-color:rgba(46,46,56,.6)}.border-figma-borderLight{--tw-border-opacity:1;border-color:rgb(63 63 78/var(--tw-border-opacity,1))}.border-zinc-700{--tw-border-opacity:1;border-color:rgb(63 63 70/var(--tw-border-opacity,1))}.border-zinc-700\/60{border-color:rgba(63,63,70,.6)}.border-zinc-800{--tw-border-opacity:1;border-color:rgb(39 39 42/var(--tw-border-opacity,1))}.border-zinc-800\/80{border-color:rgba(39,39,42,.8)}.bg-\[\#16161a\]{--tw-bg-opacity:1;background-color:rgb(22 22 26/var(--tw-bg-opacity,1))}.bg-amber-500{--tw-bg-opacity:1;background-color:rgb(245 158 11/var(--tw-bg-opacity,1))}.bg-amber-500\/10{background-color:rgba(245,158,11,.1)}.bg-amber-500\/20{background-color:rgba(245,158,11,.2)}.bg-black\/75{background-color:rgba(0,0,0,.75)}.bg-emerald-500{--tw-bg-opacity:1;background-color:rgb(16 185 129/var(--tw-bg-opacity,1))}.bg-figma-accent{--tw-bg-opacity:1;background-color:rgb(13 153 255/var(--tw-bg-opacity,1))}.bg-figma-accent\/10{background-color:rgba(13,153,255,.1)}.bg-figma-bg{--tw-bg-opacity:1;background-color:rgb(20 20 22/var(--tw-bg-opacity,1))}.bg-figma-border{--tw-bg-opacity:1;background-color:rgb(46 46 56/var(--tw-bg-opacity,1))}.bg-figma-panel{--tw-bg-opacity:1;background-color:rgb(30 30 36/var(--tw-bg-opacity,1))}.bg-fuchsia-600{--tw-bg-opacity:1;background-color:rgb(192 38 211/var(--tw-bg-opacity,1))}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255/var(--tw-bg-opacity,1))}.bg-zinc-700{--tw-bg-opacity:1;background-color:rgb(63 63 70/var(--tw-bg-opacity,1))}.bg-zinc-700\/60{background-color:rgba(63,63,70,.6)}.bg-zinc-800{--tw-bg-opacity:1;background-color:rgb(39 39 42/var(--tw-bg-opacity,1))}.bg-zinc-800\/60{background-color:rgba(39,39,42,.6)}.bg-zinc-800\/80{background-color:rgba(39,39,42,.8)}.bg-zinc-900{--tw-bg-opacity:1;background-color:rgb(24 24 27/var(--tw-bg-opacity,1))}.bg-zinc-900\/20{background-color:rgba(24,24,27,.2)}.bg-zinc-900\/40{background-color:rgba(24,24,27,.4)}.bg-zinc-900\/60{background-color:rgba(24,24,27,.6)}.bg-zinc-900\/80{background-color:rgba(24,24,27,.8)}.bg-zinc-900\/90{background-color:rgba(24,24,27,.9)}.bg-zinc-950{--tw-bg-opacity:1;background-color:rgb(9 9 11/var(--tw-bg-opacity,1))}.bg-zinc-950\/20{background-color:rgba(9,9,11,.2)}.bg-gradient-to-br{background-image:linear-gradient(to bottom right,var(--tw-gradient-stops))}.from-figma-accent{--tw-gradient-from:#0d99ff var(--tw-gradient-from-position);--tw-gradient-to:rgba(13,153,255,0) var(--tw-gradient-to-position);--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to)}.to-blue-600{--tw-gradient-to:#2563eb var(--tw-gradient-to-position)}.fill-current{fill:currentColor}.p-0\.5{padding:.125rem}.p-1{padding:.25rem}.p-1\.5{padding:.375rem}.p-2{padding:.5rem}.p-2\.5{padding:.625rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.px-1{padding-left:.25rem;padding-right:.25rem}.px-1\.5{padding-left:.375rem;padding-right:.375rem}.px-2{padding-left:.5rem;padding-right:.5rem}.px-2\.5{padding-left:.625rem;padding-right:.625rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-3\.5{padding-left:.875rem;padding-right:.875rem}.px-4{padding-left:1rem;padding-right:1rem}.py-0{padding-top:0;padding-bottom:0}.py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-1\.5{padding-top:.375rem;padding-bottom:.375rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}.py-8{padding-top:2rem;padding-bottom:2rem}.\!pl-0{padding-left:0!important}.pb-1{padding-bottom:.25rem}.pb-2{padding-bottom:.5rem}.pb-2\.5{padding-bottom:.625rem}.pl-2{padding-left:.5rem}.pl-3{padding-left:.75rem}.pr-2{padding-right:.5rem}.pt-0\.5{padding-top:.125rem}.pt-1{padding-top:.25rem}.pt-1\.5{padding-top:.375rem}.pt-2{padding-top:.5rem}.pt-3{padding-top:.75rem}.text-center{text-align:center}.font-mono{font-family:JetBrains Mono,monospace}.font-sans{font-family:Inter,sans-serif}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-\[9px\]{font-size:9px}.text-sm{font-size:.875rem;line-height:1.25rem}.text-xs{font-size:.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-normal{font-weight:400}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.normal-case{text-transform:none}.leading-none{line-height:1}.leading-relaxed{line-height:1.625}.leading-snug{line-height:1.375}.leading-tight{line-height:1.25}.tracking-wider{letter-spacing:.05em}.\!text-amber-400{--tw-text-opacity:1!important;color:rgb(251 191 36/var(--tw-text-opacity,1))!important}.\!text-indigo-400{--tw-text-opacity:1!important;color:rgb(129 140 248/var(--tw-text-opacity,1))!important}.text-amber-200{--tw-text-opacity:1;color:rgb(253 230 138/var(--tw-text-opacity,1))}.text-amber-300{--tw-text-opacity:1;color:rgb(252 211 77/var(--tw-text-opacity,1))}.text-amber-400{--tw-text-opacity:1;color:rgb(251 191 36/var(--tw-text-opacity,1))}.text-amber-500\/60{color:rgba(245,158,11,.6)}.text-blue-400{--tw-text-opacity:1;color:rgb(96 165 250/var(--tw-text-opacity,1))}.text-emerald-300{--tw-text-opacity:1;color:rgb(110 231 183/var(--tw-text-opacity,1))}.text-emerald-400{--tw-text-opacity:1;color:rgb(52 211 153/var(--tw-text-opacity,1))}.text-figma-accent{--tw-text-opacity:1;color:rgb(13 153 255/var(--tw-text-opacity,1))}.text-figma-text{--tw-text-opacity:1;color:rgb(243 244 246/var(--tw-text-opacity,1))}.text-orange-300{--tw-text-opacity:1;color:rgb(253 186 116/var(--tw-text-opacity,1))}.text-orange-400{--tw-text-opacity:1;color:rgb(251 146 60/var(--tw-text-opacity,1))}.text-pink-400{--tw-text-opacity:1;color:rgb(244 114 182/var(--tw-text-opacity,1))}.text-purple-400{--tw-text-opacity:1;color:rgb(192 132 252/var(--tw-text-opacity,1))}.text-red-400{--tw-text-opacity:1;color:rgb(248 113 113/var(--tw-text-opacity,1))}.text-rose-400{--tw-text-opacity:1;color:rgb(251 113 133/var(--tw-text-opacity,1))}.text-sky-300{--tw-text-opacity:1;color:rgb(125 211 252/var(--tw-text-opacity,1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.text-yellow-300{--tw-text-opacity:1;color:rgb(253 224 71/var(--tw-text-opacity,1))}.text-yellow-400{--tw-text-opacity:1;color:rgb(250 204 21/var(--tw-text-opacity,1))}.text-zinc-100{--tw-text-opacity:1;color:rgb(244 244 245/var(--tw-text-opacity,1))}.text-zinc-200{--tw-text-opacity:1;color:rgb(228 228 231/var(--tw-text-opacity,1))}.text-zinc-300{--tw-text-opacity:1;color:rgb(212 212 216/var(--tw-text-opacity,1))}.text-zinc-400{--tw-text-opacity:1;color:rgb(161 161 170/var(--tw-text-opacity,1))}.text-zinc-500{--tw-text-opacity:1;color:rgb(113 113 122/var(--tw-text-opacity,1))}.text-zinc-600{--tw-text-opacity:1;color:rgb(82 82 91/var(--tw-text-opacity,1))}.text-zinc-950{--tw-text-opacity:1;color:rgb(9 9 11/var(--tw-text-opacity,1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-0{opacity:0}.opacity-40{opacity:.4}.opacity-50{opacity:.5}.opacity-60{opacity:.6}.opacity-80{opacity:.8}.shadow{--tw-shadow:0 1px 3px 0 rgba(0,0,0,.1),0 1px 2px -1px rgba(0,0,0,.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color),0 1px 2px -1px var(--tw-shadow-color)}.shadow,.shadow-2xl{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-2xl{--tw-shadow:0 25px 50px -12px rgba(0,0,0,.25);--tw-shadow-colored:0 25px 50px -12px var(--tw-shadow-color)}.shadow-lg{--tw-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color),0 4px 6px -4px var(--tw-shadow-color)}.shadow-lg,.shadow-md{box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-md{--tw-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color),0 2px 4px -2px var(--tw-shadow-color)}.shadow-sm{--tw-shadow:0 1px 2px 0 rgba(0,0,0,.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow,0 0 #0000),var(--tw-ring-shadow,0 0 #0000),var(--tw-shadow)}.shadow-amber-500\/20{--tw-shadow-color:rgba(245,158,11,.2);--tw-shadow:var(--tw-shadow-colored)}.shadow-black\/60{--tw-shadow-color:rgba(0,0,0,.6);--tw-shadow:var(--tw-shadow-colored)}.shadow-blue-500\/20{--tw-shadow-color:rgba(59,130,246,.2);--tw-shadow:var(--tw-shadow-colored)}.outline{outline-style:solid}.ring{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.blur{--tw-blur:blur(8px)}.blur,.drop-shadow{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.drop-shadow{--tw-drop-shadow:drop-shadow(0 1px 2px rgba(0,0,0,.1)) drop-shadow(0 1px 1px rgba(0,0,0,.06))}.grayscale{--tw-grayscale:grayscale(100%);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.\!filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)!important}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.backdrop-blur-sm{--tw-backdrop-blur:blur(4px);-webkit-backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);backdrop-filter:var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia)}.transition{transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,-webkit-backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter;transition-property:color,background-color,border-color,text-decoration-color,fill,stroke,opacity,box-shadow,transform,filter,backdrop-filter,-webkit-backdrop-filter;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(.4,0,.2,1);transition-duration:.15s}.duration-200{transition-duration:.2s}.selection\:bg-amber-500\/30 ::-moz-selection{background-color:rgba(245,158,11,.3)}.selection\:bg-amber-500\/30 ::selection{background-color:rgba(245,158,11,.3)}.selection\:bg-amber-500\/30::-moz-selection{background-color:rgba(245,158,11,.3)}.selection\:bg-amber-500\/30::selection{background-color:rgba(245,158,11,.3)}.focus-within\:border-figma-accent:focus-within{--tw-border-opacity:1;border-color:rgb(13 153 255/var(--tw-border-opacity,1))}.hover\:scale-110:hover{--tw-scale-x:1.1;--tw-scale-y:1.1;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.hover\:border-figma-accent:hover{--tw-border-opacity:1;border-color:rgb(13 153 255/var(--tw-border-opacity,1))}.hover\:bg-amber-400:hover{--tw-bg-opacity:1;background-color:rgb(251 191 36/var(--tw-bg-opacity,1))}.hover\:bg-amber-500\/10:hover{background-color:rgba(245,158,11,.1)}.hover\:bg-figma-accentHover:hover{--tw-bg-opacity:1;background-color:rgb(0 133 230/var(--tw-bg-opacity,1))}.hover\:bg-figma-hover:hover{--tw-bg-opacity:1;background-color:rgb(40 40 50/var(--tw-bg-opacity,1))}.hover\:bg-zinc-700:hover{--tw-bg-opacity:1;background-color:rgb(63 63 70/var(--tw-bg-opacity,1))}.hover\:bg-zinc-800:hover{--tw-bg-opacity:1;background-color:rgb(39 39 42/var(--tw-bg-opacity,1))}.hover\:bg-zinc-800\/50:hover{background-color:rgba(39,39,42,.5)}.hover\:bg-zinc-800\/80:hover{background-color:rgba(39,39,42,.8)}.hover\:text-amber-400:hover{--tw-text-opacity:1;color:rgb(251 191 36/var(--tw-text-opacity,1))}.hover\:text-cyan-400:hover{--tw-text-opacity:1;color:rgb(34 211 238/var(--tw-text-opacity,1))}.hover\:text-figma-accent:hover{--tw-text-opacity:1;color:rgb(13 153 255/var(--tw-text-opacity,1))}.hover\:text-red-400:hover{--tw-text-opacity:1;color:rgb(248 113 113/var(--tw-text-opacity,1))}.hover\:text-white:hover{--tw-text-opacity:1;color:rgb(255 255 255/var(--tw-text-opacity,1))}.hover\:text-zinc-200:hover{--tw-text-opacity:1;color:rgb(228 228 231/var(--tw-text-opacity,1))}.hover\:text-zinc-300:hover{--tw-text-opacity:1;color:rgb(212 212 216/var(--tw-text-opacity,1))}.hover\:underline:hover{text-decoration-line:underline}.focus\:border-amber-500\/50:focus{border-color:rgba(245,158,11,.5)}.focus\:border-figma-accent:focus{--tw-border-opacity:1;border-color:rgb(13 153 255/var(--tw-border-opacity,1))}.focus\:bg-zinc-800:focus{--tw-bg-opacity:1;background-color:rgb(39 39 42/var(--tw-bg-opacity,1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}.focus\:ring-0:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000)}.group:hover .group-hover\:scale-110{--tw-scale-x:1.1;--tw-scale-y:1.1;transform:translate(var(--tw-translate-x),var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.group:hover .group-hover\:text-figma-accent{--tw-text-opacity:1;color:rgb(13 153 255/var(--tw-text-opacity,1))}.group:hover .group-hover\:opacity-100{opacity:1}@media (min-width:1400px){.min-\[1400px\]\:inline{display:inline}}@media (min-width:1500px){.min-\[1500px\]\:inline{display:inline}}@media (min-width:1600px){.min-\[1600px\]\:inline{display:inline}}@media (min-width:1700px){.min-\[1700px\]\:flex{display:flex}}</style>
+  <!-- tailwind:end -->
 </head>
 <body class="bg-figma-bg text-figma-text font-sans antialiased overflow-hidden h-screen flex flex-col unselectable">
 
-  <!-- Em telas menores os rótulos somem e ficam só os ícones (com tooltip); overflow-x é a última rede de segurança -->
-  <header class="h-12 bg-figma-panel border-b border-figma-border flex items-center justify-between px-3.5 z-40 shrink-0 gap-3 overflow-x-auto">
-    <!-- Left: Branding, File Project, Resolution & Snap -->
-    <div class="flex items-center gap-2.5 shrink-0">
-      <div class="flex items-center gap-2 mr-1">
+  <!-- Barra superior (R7). Esquerda: arquivo, histórico e inserir. Centro: configurações da cena. Direita: visualização e export.
+       Rótulos só aparecem em telas largas; abaixo disso ficam os ícones (com tooltip). overflow-x é a última rede de segurança. -->
+  <header id="topBar" class="h-11 bg-figma-panel border-b border-figma-border items-center px-3 z-40 shrink-0 gap-3 overflow-x-auto">
+    <!-- Esquerda -->
+    <div class="flex items-center gap-2 justify-self-start">
+      <div class="flex items-center gap-2 mr-0.5">
         <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-figma-accent to-blue-600 flex items-center justify-center text-white font-mono font-bold text-xs shadow-md shadow-blue-500/20">
           UI
         </div>
-        <div class="hidden min-[1600px]:flex flex-col">
+        <div class="hidden min-[1700px]:flex flex-col">
           <span class="font-bold text-xs tracking-wider uppercase text-zinc-100 leading-none">Game UI</span>
-          <span class="text-[9px] text-zinc-400 font-mono leading-tight">Studio 1080p</span>
+          <span class="text-[9px] text-zinc-400 font-mono leading-tight">Studio</span>
         </div>
       </div>
 
-      <!-- Project Save / Load Group -->
-      <div class="flex items-center bg-zinc-900/90 border border-figma-border rounded-lg p-0.5 shadow-sm">
-        <button id="btnSaveProject" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Salvar todo o layout em arquivo (.json)" data-i18n-title>
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-          <span class="hidden min-[1400px]:inline" data-i18n>Salvar</span>
+      <div class="tb-group">
+        <button id="btnSaveProject" class="tb-btn" title="Salvar todo o layout em arquivo (.json)" data-i18n-title>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+          <span class="hidden min-[1500px]:inline" data-i18n>Salvar</span>
         </button>
-        <label class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap font-medium" title="Carregar layout salvo (.json)" data-i18n-title>
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-          <span class="hidden min-[1400px]:inline" data-i18n>Abrir</span>
+        <label class="tb-btn cursor-pointer" title="Carregar layout salvo (.json)" data-i18n-title>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          <span class="hidden min-[1500px]:inline" data-i18n>Abrir</span>
           <input type="file" id="inputLoadProject" accept=".json,application/json" class="hidden">
         </label>
-      </div>
-
-      <!-- Undo / Redo -->
-      <div class="flex items-center bg-zinc-900/90 border border-figma-border rounded-lg p-0.5 shadow-sm">
-        <button id="btnUndo" disabled class="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-300 hover:text-white transition disabled:opacity-30 disabled:pointer-events-none" title="Desfazer (Ctrl+Z)" data-i18n-title>
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l5-5M3 10l5 5"/></svg>
-        </button>
-        <button id="btnRedo" disabled class="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-300 hover:text-white transition disabled:opacity-30 disabled:pointer-events-none" title="Refazer (Ctrl+Shift+Z / Ctrl+Y)" data-i18n-title>
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a5 5 0 00-5 5v2m15-7l-5-5m5 5l-5 5"/></svg>
-        </button>
-      </div>
-
-      <div class="h-4 w-[1px] bg-figma-border"></div>
-
-      <!-- Resolution Dropdown -->
-      <div class="flex items-center gap-1.5 bg-zinc-900/90 border border-figma-border rounded-lg px-2 py-1 text-xs shadow-sm">
-        <span class="text-zinc-500 text-[10px] uppercase font-semibold">Res</span>
-        <select id="canvasResSelect" class="bg-transparent text-zinc-200 focus:outline-none cursor-pointer text-xs font-mono font-medium">
-          <option value="1920x1080" selected>1920 × 1080 (FHD)</option>
-          <option value="2560x1440">2560 × 1440 (2K)</option>
-          <option value="1280x720">1280 × 720 (HD)</option>
-          <option value="3840x2160">3840 × 2160 (4K)</option>
-        </select>
-      </div>
-
-      <!-- Snap Toggle -->
-      <div class="flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900/60 border border-figma-border/70 rounded-lg px-2 py-1 shrink-0 select-none">
-        <label class="flex items-center gap-1.5 cursor-pointer hover:text-zinc-200" title="Encaixar no grid ao mover e redimensionar" data-i18n-title>
-          <input type="checkbox" id="chkSnapGrid" class="rounded border-zinc-700 bg-zinc-900 text-figma-accent focus:ring-0 w-3.5 h-3.5">
-          <span class="text-[11px] font-mono">Snap</span>
+        <label class="tb-btn cursor-pointer" title="Importar layout para a cena (soma os itens de outro .json aos atuais; também dá para arrastar o .json no canvas)" data-i18n-title>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+          <input type="file" id="inputImportLayout" accept=".json,application/json" class="hidden">
         </label>
-        <select id="gridSizeSelect" class="bg-transparent text-zinc-200 focus:outline-none cursor-pointer text-[11px] font-mono" title="Tamanho do grid" data-i18n-title>
-          <option value="4">4px</option>
-          <option value="8">8px</option>
-          <option value="16" selected>16px</option>
-          <option value="32">32px</option>
-          <option value="64">64px</option>
-        </select>
-        <button id="btnToggleGrid" class="p-0.5 rounded hover:text-white" title="Mostrar grid na cena" data-i18n-title>
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 4h16v16H4zM4 10h16M4 15h16M10 4v16M15 4v16"/></svg>
+        <div class="tb-sep"></div>
+        <button id="btnUndo" disabled class="tb-btn" title="Desfazer (Ctrl+Z)" data-i18n-title>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l5-5M3 10l5 5"/></svg>
         </button>
-        <button id="btnToggleRulers" class="p-0.5 rounded hover:text-white text-figma-accent" title="Réguas e guias (Shift+R)" data-i18n-title>
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M3 3h18v6H3zM3 3v18h6V3M7 3v3M11 3v3M15 3v3M3 7h3M3 11h3M3 15h3"/></svg>
+        <button id="btnRedo" disabled class="tb-btn" title="Refazer (Ctrl+Shift+Z / Ctrl+Y)" data-i18n-title>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10H11a5 5 0 00-5 5v2m15-7l-5-5m5 5l-5 5"/></svg>
+        </button>
+      </div>
+
+      <!-- Inserir: só ícones (cor = tipo do item, a mesma da lista de camadas) -->
+      <div class="tb-group">
+        <button id="btnAddSlot" class="tb-btn" title="Slot de inventário" data-i18n-title>
+          <svg class="text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/></svg>
+        </button>
+        <button id="btnAddButton" class="tb-btn" title="Botão" data-i18n-title>
+          <svg class="text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3" stroke-width="2"/></svg>
+        </button>
+        <button id="btnAddBar" class="tb-btn" title="Barra (vida, mana, XP)" data-i18n-title>
+          <svg class="text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
+        </button>
+        <button id="btnAddPanel" class="tb-btn" title="Painel / janela" data-i18n-title>
+          <svg class="text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2" stroke-width="2" stroke-dasharray="4 2"/></svg>
+        </button>
+        <button id="btnAddText" class="tb-btn" title="Caixa de texto (T)" data-i18n-title>
+          <svg class="text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 6h14M12 6v13M9 19h6"/></svg>
+        </button>
+        <button id="btnAddRing" class="tb-btn" title="Medidor circular (vida, cooldown, atributo)" data-i18n-title>
+          <svg class="text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2.5" d="M12 3a9 9 0 11-8.5 6"/></svg>
+        </button>
+        <button id="btnAddShape" class="tb-btn" title="Forma: estrela, polígono, elipse, seta" data-i18n-title>
+          <svg class="text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="2" d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7z"/></svg>
         </button>
       </div>
     </div>
 
-    <!-- Center: Spawner Toolbar -->
-    <div class="flex items-center gap-1 bg-zinc-950/80 border border-figma-border rounded-lg p-1 shadow-inner shrink-0">
-      <button id="btnAddSlot" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Slot de inventário" data-i18n-title>
-        <svg class="w-3.5 h-3.5 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/></svg>
-        <span class="hidden min-[1800px]:inline">+ Slot</span>
+    <!-- Centro: configurações da cena -->
+    <div class="tb-group justify-self-center" title="Configurações da cena" data-i18n-title>
+      <span class="tb-label">Res</span>
+      <!-- Opções montadas por JS a partir de RESOLUTION_PRESETS (grupos Desktop / Celular / Tablet) -->
+      <select id="canvasResSelect" class="tb-select" title="Resolução da cena" data-i18n-title>
+        <option value="1920x1080" selected>1920×1080</option>
+      </select>
+      <button id="btnRotateRes" class="tb-btn" title="Girar a cena (retrato ⇄ paisagem)" data-i18n-title>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 9a8 8 0 00-3-5m0 0v3m0-3h-3"/></svg>
       </button>
-      <button id="btnAddButton" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Botão" data-i18n-title>
-        <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3" stroke-width="2"/></svg>
-        <span class="hidden min-[1800px]:inline" data-i18n>+ Botão</span>
+      <button id="btnToggleSafeArea" class="tb-btn" title="Área segura do aparelho (notch, barras do sistema)" data-i18n-title>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M10 5h4"/><rect x="8.5" y="8" width="7" height="8" rx="1" stroke-width="1.5" stroke-dasharray="2 1.5"/></svg>
       </button>
-      <button id="btnAddBar" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Barra (vida, mana, XP)" data-i18n-title>
-        <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg>
-        <span class="hidden min-[1800px]:inline" data-i18n>+ Barra</span>
+      <div class="tb-sep"></div>
+      <label class="tb-btn cursor-pointer select-none" title="Encaixar no grid ao mover e redimensionar" data-i18n-title>
+        <input type="checkbox" id="chkSnapGrid" class="rounded border-zinc-700 bg-zinc-900 text-figma-accent focus:ring-0 w-3.5 h-3.5">
+        <span class="hidden min-[1400px]:inline text-[11px] font-mono">Snap</span>
+      </label>
+      <select id="gridSizeSelect" class="tb-select" title="Tamanho do grid" data-i18n-title>
+        <option value="4">4px</option>
+        <option value="8">8px</option>
+        <option value="16" selected>16px</option>
+        <option value="32">32px</option>
+        <option value="64">64px</option>
+      </select>
+      <button id="btnToggleGrid" class="tb-btn" title="Mostrar grid na cena" data-i18n-title>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M4 4h16v16H4zM4 10h16M4 15h16M10 4v16M15 4v16"/></svg>
       </button>
-      <button id="btnAddPanel" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Painel / janela" data-i18n-title>
-        <svg class="w-3.5 h-3.5 text-purple-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2" stroke-width="2" stroke-dasharray="4 2"/></svg>
-        <span class="hidden min-[1800px]:inline" data-i18n>+ Painel</span>
-      </button>
-      <button id="btnAddText" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Caixa de texto (T)" data-i18n-title>
-        <svg class="w-3.5 h-3.5 text-pink-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 6h14M12 6v13M9 19h6"/></svg>
-        <span class="hidden min-[1800px]:inline" data-i18n>+ Texto</span>
-      </button>
-      <button id="btnAddRing" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Medidor circular (vida, cooldown, atributo)" data-i18n-title>
-        <svg class="w-3.5 h-3.5 text-orange-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2.5" d="M12 3a9 9 0 11-8.5 6"/></svg>
-        <span class="hidden min-[1800px]:inline" data-i18n>+ Anel</span>
-      </button>
-      <button id="btnAddShape" class="px-2.5 py-1 text-xs rounded-md hover:bg-zinc-800 text-zinc-200 hover:text-white flex items-center gap-1.5 transition whitespace-nowrap font-medium" title="Forma: estrela, polígono, elipse, seta" data-i18n-title>
-        <svg class="w-3.5 h-3.5 text-yellow-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linejoin="round" stroke-width="2" d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6-4.5-4.2 6.1-.7z"/></svg>
-        <span class="hidden min-[1800px]:inline" data-i18n>+ Forma</span>
+      <button id="btnToggleRulers" class="tb-btn text-figma-accent" title="Réguas e guias (Shift+R)" data-i18n-title>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M3 3h18v6H3zM3 3v18h6V3M7 3v3M11 3v3M15 3v3M3 7h3M3 11h3M3 15h3"/></svg>
       </button>
     </div>
 
-    <!-- Right: Zoom & Export Controls -->
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="flex items-center bg-zinc-900/90 border border-figma-border rounded-lg px-1.5 py-0.5 text-xs font-mono shadow-sm">
-        <button id="btnZoomOut" class="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white font-bold hover:bg-zinc-800 rounded transition">−</button>
-        <span id="zoomLabel" class="w-11 text-center text-zinc-300 font-semibold select-none">100%</span>
-        <button id="btnZoomIn" class="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white font-bold hover:bg-zinc-800 rounded transition">+</button>
-        <button id="btnZoomFit" class="text-[10px] text-zinc-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-zinc-800 border-l border-zinc-800 ml-1 transition">Fit</button>
-        <button id="btnZoomReset" class="text-[10px] text-zinc-500 hover:text-zinc-300 px-1.5 py-0.5 rounded hover:bg-zinc-800 border-l border-zinc-800 ml-0.5 transition">1:1</button>
+    <!-- Direita: zoom, scripts, export, idioma -->
+    <div class="flex items-center gap-2 justify-self-end">
+      <div class="tb-group font-mono">
+        <button id="btnZoomOut" class="tb-btn" title="Diminuir zoom (Ctrl −)" data-i18n-title>−</button>
+        <span id="zoomLabel" class="w-11 text-center text-[11px] text-zinc-300 font-semibold select-none">100%</span>
+        <button id="btnZoomIn" class="tb-btn" title="Aumentar zoom (Ctrl +)" data-i18n-title>+</button>
+        <div class="tb-sep"></div>
+        <button id="btnZoomFit" class="tb-btn text-[11px]" title="Enquadrar a cena (Shift+1)" data-i18n-title>Fit</button>
+        <button id="btnZoomReset" class="tb-btn text-[11px]" title="Zoom 100% (Shift+0)" data-i18n-title>1:1</button>
       </div>
 
-      <button id="btnOpenScriptModal" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition shadow-sm whitespace-nowrap">
-        <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-        <span class="hidden min-[1700px]:inline">⚡ Scripts</span>
+      <div class="tb-group">
+        <button id="btnOpenScriptModal" class="tb-btn" title="Scripts / Workbench (Ctrl+J)" data-i18n-title>
+          <svg class="text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+          <span class="hidden min-[1600px]:inline">Scripts</span>
+        </button>
+      </div>
+
+      <button id="btnExportMenu" class="h-8 bg-figma-accent hover:bg-figma-accentHover text-white text-xs font-semibold pl-3 pr-2 rounded-lg flex items-center gap-1.5 transition shadow whitespace-nowrap shrink-0" title="Exportar (formato, resolução e destino)" data-i18n-title aria-haspopup="menu" aria-expanded="false">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        <span data-i18n>Exportar</span>
+        <svg class="w-3 h-3 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 9l6 6 6-6"/></svg>
       </button>
 
-      <div class="h-4 w-[1px] bg-figma-border mx-0.5"></div>
-
-      <div class="flex items-center gap-1 bg-zinc-900/60 border border-figma-border/70 p-0.5 rounded-lg shadow-sm">
-        <!-- Resolução de saída de Item, Cena e Batch ZIP (preferência do editor) -->
-        <select id="exportFormatSelect" class="bg-transparent text-[11px] font-mono text-zinc-300 hover:text-white px-1 py-1 rounded-md focus:outline-none cursor-pointer" title="Formato de Item e Cena (SVG = vetor, para sites)" data-i18n-title>
-          <option value="png">PNG</option>
-          <option value="svg">SVG</option>
-        </select>
-        <select id="exportScaleSelect" class="bg-transparent text-[11px] font-mono text-zinc-300 hover:text-white px-1 py-1 rounded-md focus:outline-none cursor-pointer" title="Resolução do export (PNGs, manifest e cena Godot)" data-i18n-title></select>
-        <button id="btnExportSelected" class="bg-figma-accent hover:bg-figma-accentHover text-white text-xs font-medium px-2.5 py-1.5 rounded-md flex items-center gap-1.5 transition shadow whitespace-nowrap" title="Exportar item selecionado (PNG)" data-i18n-title>
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          <span class="hidden min-[1500px]:inline" data-i18n>Item</span>
-        </button>
-
-        <button id="btnExportScene" class="hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-medium px-2.5 py-1.5 rounded-md flex items-center gap-1.5 transition whitespace-nowrap" title="Exportar a cena inteira (PNG)" data-i18n-title>
-          <svg class="w-3.5 h-3.5 text-zinc-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          <span class="hidden min-[1500px]:inline" data-i18n>Cena</span>
-        </button>
-
-        <button id="btnExportBatch" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-md flex items-center gap-1.5 transition shadow whitespace-nowrap" title="Exportar tudo em ZIP com manifest para Unity, Unreal e Godot" data-i18n-title>
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-          <span class="hidden min-[1500px]:inline">Batch ZIP</span>
-        </button>
-      </div>
-
-      <select id="langSelect" class="bg-zinc-900/90 border border-figma-border rounded-lg px-1.5 py-1 text-[11px] font-mono text-zinc-300 focus:outline-none cursor-pointer" title="Idioma / Language">
+      <select id="langSelect" class="tb-select border border-figma-border h-8" title="Idioma / Language">
         <option value="pt">PT</option>
         <option value="en">EN</option>
       </select>
     </div>
   </header>
 
+  <!-- Menu de export: fora do header (o overflow-x dele cortaria o popover); posicionado por JS abaixo do botão -->
+  <div id="exportMenu" role="menu" class="hidden fixed z-50 w-80 bg-figma-panel border border-figma-borderLight rounded-lg shadow-2xl shadow-black/60 p-1.5">
+    <div class="grid grid-cols-[5.5rem_1fr] gap-2 px-2 pt-1.5 pb-2.5 border-b border-figma-border mb-1">
+      <label class="flex flex-col gap-1">
+        <span class="tb-label !pl-0" data-i18n>Formato</span>
+        <select id="exportFormatSelect" class="tb-select border border-figma-border bg-zinc-900" title="Formato de Item e Cena (SVG = vetor, para sites)" data-i18n-title>
+          <option value="png">PNG</option>
+          <option value="svg">SVG</option>
+        </select>
+      </label>
+      <label class="flex flex-col gap-1">
+        <span class="tb-label !pl-0" data-i18n>Resolução</span>
+        <select id="exportScaleSelect" class="tb-select border border-figma-border bg-zinc-900" title="Resolução do export (PNGs, manifest e cena Godot)" data-i18n-title></select>
+      </label>
+    </div>
+    <button id="btnExportSelected" role="menuitem" class="menu-item" title="Exportar item selecionado (PNG)" data-i18n-title>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2" stroke-width="2"/></svg>
+      <span><span data-i18n>Item selecionado</span><small data-i18n>Só a seleção, no formato escolhido</small></span>
+    </button>
+    <button id="btnExportScene" role="menuitem" class="menu-item" title="Exportar a cena inteira (PNG)" data-i18n-title>
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <span><span data-i18n>Cena inteira</span><small data-i18n>Uma imagem com tudo que está no canvas</small></span>
+    </button>
+    <button id="btnExportBatch" role="menuitem" class="menu-item" title="Exportar tudo em ZIP com manifest para Unity, Unreal e Godot" data-i18n-title>
+      <svg class="!text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+      <span><span data-i18n>Pacote ZIP para engines</span><small data-i18n>PNGs 9-slice + manifest Unity, Unreal e Godot</small></span>
+    </button>
+    <button id="btnExportScript" role="menuitem" class="menu-item" title="Gerar o código Studio que recria a seleção" data-i18n-title>
+      <svg class="!text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+      <span><span data-i18n>Script da seleção (JS)</span><small data-i18n>Código Studio para recriar ou compartilhar</small></span>
+    </button>
+  </div>
+
   <!-- Main Body Layout -->
   <div class="flex-1 flex overflow-hidden relative">
 
     <!-- LEFT SIDEBAR -->
-    <aside class="w-64 bg-figma-panel border-r border-figma-border flex flex-col shrink-0 z-20">
+    <aside id="leftPanel" class="w-64 bg-figma-panel border-r border-figma-border flex flex-col shrink-0 z-20">
       <div class="p-3 border-b border-figma-border bg-zinc-900/40">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-1.5">
@@ -384,6 +395,9 @@
           <button id="btnUngroupLayers" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-amber-400" title="Desagrupar (Ctrl+Shift+G)" data-i18n-title>
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
           </button>
+          <button id="btnMergeLayers" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-cyan-400" title="Mesclar em uma imagem (Ctrl+E)" data-i18n-title>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6l8 4 8-4-8-4-8 4zM4 12l8 4 8-4M4 18l8 4 8-4"/></svg>
+          </button>
           <button id="btnDuplicateLayer" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white" title="Duplicar (Ctrl+D)" data-i18n-title>
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
           </button>
@@ -409,6 +423,9 @@
       </div>
     </aside>
 
+    <!-- Alças de largura dos painéis (R7): coluna de largura zero, a área de clique fica por cima da borda -->
+    <div class="relative w-0 shrink-0 z-[35]"><div id="resizeLeftPanel" class="panel-resizer" data-panel="left" role="separator" aria-orientation="vertical" tabindex="0" title="Arraste para ajustar a largura (duplo clique volta ao padrão)" data-i18n-title></div></div>
+
     <!-- CENTER VIEWPORT -->
     <main id="viewportContainer" class="flex-1 overflow-hidden relative viewport-grid flex items-center justify-center cursor-default">
       <!-- shrink-0: sem ele o flexbox encolhia o mundo (conteúdo todo absoluto) e o canvas ficava achatado -->
@@ -418,6 +435,15 @@
 
         <!-- Grid visual: padrão CSS (não custa render e não entra no PNG) -->
         <div id="gridOverlay" class="absolute inset-0 z-[12] pointer-events-none hidden"></div>
+
+        <!-- Área segura (mobile): faixas do notch e das barras do sistema. Só no editor, não entra no export -->
+        <div id="safeAreaOverlay" class="absolute inset-0 z-[13] pointer-events-none hidden">
+          <div class="safe-band" data-side="top"></div>
+          <div class="safe-band" data-side="bottom"></div>
+          <div class="safe-band" data-side="left"></div>
+          <div class="safe-band" data-side="right"></div>
+          <div id="safeAreaRect" class="absolute"></div>
+        </div>
 
         <!-- Guias de régua (posição em px da cena) -->
         <div id="guidesLayer" class="absolute inset-0 z-[24] pointer-events-none"></div>
@@ -474,11 +500,36 @@
           <option value="color" data-i18n>Cor sólida</option>
         </select>
         <input type="color" id="sceneBgColor" value="#101014" class="hidden" title="Cor de fundo da cena" data-i18n-title>
+        <span class="h-3 w-[1px] bg-figma-border"></span>
+        <!-- Acessibilidade (R7): simula daltonismo só na tela do editor; não muda nada no export -->
+        <span class="text-zinc-500" data-i18n>Visão</span>
+        <select id="visionSimSelect" class="bg-transparent text-zinc-200 focus:outline-none cursor-pointer text-[11px]" title="Simular como pessoas com daltonismo veem a cena (só na tela)" data-i18n-title>
+          <option value="" data-i18n>Normal</option>
+          <option value="protanopia" data-i18n>Protanopia (vermelho)</option>
+          <option value="deuteranopia" data-i18n>Deuteranopia (verde)</option>
+          <option value="tritanopia" data-i18n>Tritanopia (azul)</option>
+          <option value="achromatopsia" data-i18n>Tons de cinza</option>
+        </select>
+        <span class="h-3 w-[1px] bg-figma-border"></span>
+        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white" title="Alonga e acentua os textos como uma tradução faria e marca em vermelho o que estourar (só na tela)" data-i18n-title>
+          <input type="checkbox" id="chkPseudoLoc" class="rounded border-zinc-700 bg-zinc-900 w-3 h-3">
+          <span data-i18n>Teste de tradução</span>
+          <span id="pseudoLocCount" class="hidden text-rose-400"></span>
+        </label>
       </div>
+      <!-- Matrizes de Machado, Oliveira e Fernandes (2009), severidade 1, aplicadas em RGB linear -->
+      <svg width="0" height="0" class="absolute pointer-events-none" aria-hidden="true">
+        <filter id="cb-protanopia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0"/></filter>
+        <filter id="cb-deuteranopia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0"/></filter>
+        <filter id="cb-tritanopia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1.255528 -0.076749 -0.178779 0 0  -0.078411 0.930809 0.147602 0 0  0.004733 0.691367 0.303900 0 0  0 0 0 1 0"/></filter>
+        <filter id="cb-achromatopsia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0"/></filter>
+      </svg>
     </main>
 
+    <div class="relative w-0 shrink-0 z-[35]"><div id="resizeRightPanel" class="panel-resizer" data-panel="right" role="separator" aria-orientation="vertical" tabindex="0" title="Arraste para ajustar a largura (duplo clique volta ao padrão)" data-i18n-title></div></div>
+
     <!-- RIGHT SIDEBAR: Properties Inspector -->
-    <aside class="w-80 bg-figma-panel border-l border-figma-border flex flex-col shrink-0 z-20 overflow-y-auto">
+    <aside id="rightPanel" class="w-80 bg-figma-panel border-l border-figma-border flex flex-col shrink-0 z-20 overflow-y-auto">
       <div class="p-3 border-b border-figma-border flex items-center justify-between gap-2">
         <input type="text" id="propName" value="Componente" class="bg-transparent font-semibold text-sm text-zinc-100 focus:outline-none focus:bg-zinc-800 px-1 py-0.5 rounded w-44">
         <span id="propTypeBadge" class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-figma-accent border border-zinc-700">Slot</span>
@@ -539,6 +590,23 @@
             </button>
             <span id="aspectRatioLabel" class="font-mono text-zinc-500">1:1</span>
           </div>
+          <!-- Âncoras (R8): como o item se comporta em outras proporções de tela, na prévia e na engine -->
+          <div class="flex items-center gap-1.5 text-[11px]" title="Âncora: como o item se comporta quando a tela muda de proporção (vai para Unity, Unreal e Godot)" data-i18n-title>
+            <span class="insp-label" data-i18n>Âncora</span>
+            <select id="propAnchorH" class="insp-select flex-1 min-w-0">
+              <option value="left" data-i18n>Esquerda</option>
+              <option value="center" data-i18n>Centro</option>
+              <option value="right" data-i18n>Direita</option>
+              <option value="stretch" data-i18n>Esticar H</option>
+            </select>
+            <select id="propAnchorV" class="insp-select flex-1 min-w-0">
+              <option value="top" data-i18n>Topo</option>
+              <option value="middle" data-i18n>Meio</option>
+              <option value="bottom" data-i18n>Base</option>
+              <option value="stretch" data-i18n>Esticar V</option>
+            </select>
+            <button id="btnAutoAnchor" class="px-2 py-0.5 rounded border border-zinc-700 bg-zinc-800/80 text-zinc-300 hover:text-white" title="Escolher a âncora pela posição do item na cena (vale para toda a seleção)" data-i18n-title><span data-i18n>Auto</span></button>
+          </div>
           <div class="space-y-1">
             <div class="insp-row"><span data-i18n>Opacidade da Camada</span><span id="opacityVal" class="insp-val">100%</span></div>
             <input type="range" id="propOpacity" min="0" max="100" value="100" class="insp-range">
@@ -582,6 +650,8 @@
             <div class="insp-field" title="Tamanho da fonte" data-i18n-title><span class="insp-label">Aa</span><input type="number" id="propFontSize" min="6" max="400" class="insp-input"></div>
             <div class="insp-field"><input type="color" id="propTextColor"><input type="text" id="propTextHex" class="insp-hex"></div>
           </div>
+          <!-- Contraste do texto com o que está atrás dele (WCAG 2.x: 4,5:1; texto grande 3:1) -->
+          <div id="textContrastBadge" class="hidden text-[10px] font-mono px-2 py-1 rounded border"></div>
           <div class="flex items-center justify-between gap-2">
             <div class="flex bg-zinc-950 border border-figma-border rounded overflow-hidden" id="textAlignGroup">
               <button class="align-btn" data-align="left" title="Esquerda" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h13"/></svg></button>
@@ -876,6 +946,21 @@
               <input type="range" id="propInnerHighlight" min="0" max="60" class="insp-range">
             </div>
           </div>
+
+          <!-- Textura (R7): ruído e scanlines por cima do preenchimento -->
+          <span class="insp-check pt-1 cursor-default" data-i18n>Textura (grão e scanlines)</span>
+          <p class="text-[10px] text-zinc-500 leading-snug" data-i18n>Grão de filme e linhas de monitor antigo por cima do preenchimento. Sai igual no PNG e no SVG.</p>
+          <div class="space-y-2 pl-2 border-l border-zinc-800">
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Ruído</span><span id="noiseVal" class="insp-val">0%</span></div>
+              <input type="range" id="propNoise" min="0" max="100" class="insp-range">
+            </div>
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Scanlines</span><span id="scanlinesVal" class="insp-val">0%</span></div>
+              <input type="range" id="propScanlines" min="0" max="100" class="insp-range">
+            </div>
+            <div class="insp-field font-mono" title="Distância entre as linhas (px)" data-i18n-title><span class="insp-label" data-i18n>Espaçamento (px)</span><input type="number" id="propScanlineSpacing" min="2" max="32" class="insp-input"></div>
+          </div>
         </div>
 
         <div class="h-[1px] bg-figma-border"></div>
@@ -946,6 +1031,7 @@
         <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="hotbar" data-i18n>🔥 Hotbar 1 a 8</button>
         <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="recolorButtons" data-i18n>🎨 Pintar Botões Dourado</button>
         <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="alignH" data-i18n>📐 Distribuir Horizontal</button>
+        <button id="btnScriptFromSelection" class="ml-auto px-2.5 py-1 rounded border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition whitespace-nowrap" title="Gerar o código Studio que recria a seleção (sem seleção: a cena inteira)" data-i18n-title><span data-i18n>📋 Da seleção</span></button>
       </div>
 
       <!-- Templates do usuário: ficam no navegador e podem ser exportados/importados para compartilhar -->
@@ -1226,6 +1312,60 @@
       'Exportar item selecionado (PNG)': 'Export selected item (PNG)', 'Exportar a cena inteira (PNG)': 'Export the whole scene (PNG)',
       'Exportar tudo em ZIP com manifest para Unity, Unreal e Godot': 'Export everything as a ZIP with a Unity, Unreal and Godot manifest',
       'Medidor circular (vida, cooldown, atributo)': 'Circular gauge (health, cooldown, stat)',
+      'Configurações da cena': 'Scene settings', 'Diminuir zoom (Ctrl −)': 'Zoom out (Ctrl −)', 'Aumentar zoom (Ctrl +)': 'Zoom in (Ctrl +)',
+      'Enquadrar a cena (Shift+1)': 'Fit scene to view (Shift+1)', 'Zoom 100% (Shift+0)': 'Zoom 100% (Shift+0)', 'Scripts / Workbench (Ctrl+J)': 'Scripts / Workbench (Ctrl+J)',
+      'Exportar (formato, resolução e destino)': 'Export (format, resolution and target)',
+      'Formato': 'Format', 'Resolução': 'Resolution',
+      'Item selecionado': 'Selected item', 'Só a seleção, no formato escolhido': 'Just the selection, in the chosen format',
+      'Cena inteira': 'Whole scene', 'Uma imagem com tudo que está no canvas': 'One image with everything on the canvas',
+      'Importar layout para a cena (soma os itens de outro .json aos atuais; também dá para arrastar o .json no canvas)':
+        'Import layout into the scene (adds the items of another .json to the current ones; you can also drop the .json on the canvas)',
+      '{n} item(ns) importado(s) para a cena!': '{n} item(s) imported into the scene!',
+      '{n} item(ns) importado(s), escalados de {from} para caber na cena.': '{n} item(s) imported, scaled from {from} to fit the scene.',
+      'Mesclar em uma imagem (Ctrl+E)': 'Merge into one image (Ctrl+E)', 'Mesclado': 'Merged',
+      'Selecione 2 ou mais itens visíveis para mesclar.': 'Select 2 or more visible items to merge.',
+      'Nada visível para mesclar.': 'Nothing visible to merge.',
+      '{n} itens mesclados em "{name}". Ctrl+Z desfaz.': '{n} items merged into "{name}". Ctrl+Z undoes it.',
+      'Resolução da cena': 'Scene resolution', 'Girar a cena (retrato ⇄ paisagem)': 'Rotate the scene (portrait ⇄ landscape)',
+      'Área segura do aparelho (notch, barras do sistema)': 'Device safe area (notch, system bars)',
+      'Desktop / Console': 'Desktop / Console', 'Celular (retrato)': 'Phone (portrait)', 'Tablet (paisagem)': 'Tablet (landscape)',
+      'Personalizada': 'Custom', 'Cena girada: {res}': 'Scene rotated: {res}',
+      'Arraste para ajustar a largura (duplo clique volta ao padrão)': 'Drag to adjust the width (double-click resets)',
+      'Textura (grão e scanlines)': 'Texture (grain and scanlines)',
+      'Âncora': 'Anchor', 'Esticar H': 'Stretch H', 'Esticar V': 'Stretch V', 'Auto': 'Auto',
+      'Âncora: como o item se comporta quando a tela muda de proporção (vai para Unity, Unreal e Godot)':
+        'Anchor: how the item behaves when the screen changes aspect ratio (exported to Unity, Unreal and Godot)',
+      'Escolher a âncora pela posição do item na cena (vale para toda a seleção)': 'Pick the anchor from the item position in the scene (applies to the whole selection)',
+      'Âncora automática em {n} item(ns).': 'Auto anchor on {n} item(s).',
+      'Resolução: {res} ({n} item(ns) ajustado(s) pelas âncoras)': 'Resolution: {res} ({n} item(s) adjusted by anchors)',
+      'Cena girada: {res} ({n} item(ns) ajustado(s) pelas âncoras)': 'Scene rotated: {res} ({n} item(s) adjusted by anchors)',
+      'Visão': 'Vision', 'Normal': 'Normal', 'Protanopia (vermelho)': 'Protanopia (red)', 'Deuteranopia (verde)': 'Deuteranopia (green)',
+      'Tritanopia (azul)': 'Tritanopia (blue)', 'Tons de cinza': 'Grayscale',
+      'Simular como pessoas com daltonismo veem a cena (só na tela)': 'Simulate how color-blind people see the scene (screen only)',
+      'Teste de tradução': 'Translation test',
+      'Alonga e acentua os textos como uma tradução faria e marca em vermelho o que estourar (só na tela)':
+        'Lengthens and accents texts like a translation would and marks overflows in red (screen only)',
+      '{n} estouro(s)': '{n} overflow(s)', 'tudo cabe': 'everything fits',
+      'Contraste: fundo transparente, depende do que ficar atrás no jogo': 'Contrast: transparent background, depends on what is behind it in the game',
+      'Contraste {r}:1 ✓ legível (mínimo {need}:1)': 'Contrast {r}:1 ✓ readable (minimum {need}:1)',
+      'Contraste {r}:1 ⚠ baixo: o mínimo é {need}:1': 'Contrast {r}:1 ⚠ low: the minimum is {need}:1',
+      'Grão de filme e linhas de monitor antigo por cima do preenchimento. Sai igual no PNG e no SVG.':
+        'Film grain and old-monitor lines over the fill. Exports the same in PNG and SVG.',
+      'Ruído': 'Noise', 'Scanlines': 'Scanlines', 'Espaçamento (px)': 'Spacing (px)',
+      'Distância entre as linhas (px)': 'Distance between lines (px)',
+      'Textura (ruído/scanlines) estica junto com o centro no modo Sliced. Use Tiled no centro ou aplique a textura na engine.':
+        'Texture (noise/scanlines) stretches with the center in Sliced mode. Use Tiled for the center or apply the texture in the engine.',
+      'Gerar o código Studio que recria a seleção': 'Generate the Studio code that recreates the selection',
+      'Script da seleção (JS)': 'Selection script (JS)', 'Código Studio para recriar ou compartilhar': 'Studio code to recreate or share',
+      'Gerar o código Studio que recria a seleção (sem seleção: a cena inteira)': 'Generate the Studio code that recreates the selection (no selection: the whole scene)',
+      '📋 Da seleção': '📋 From selection',
+      'Gerado pelo Game Dev UI Studio (cena {w}×{h}). {n} item(ns).': 'Generated by Game Dev UI Studio ({w}×{h} scene). {n} item(s).',
+      'Mude ox/oy para recriar o conjunto em outro lugar.': 'Change ox/oy to recreate the set somewhere else.',
+      'imagem de {kb} KB omitida': '{kb} KB image omitted',
+      'Nenhum componente para gerar script.': 'No components to generate a script from.',
+      'Script de {n} item(ns) no editor. Revise e execute (Ctrl+Enter).': 'Script for {n} item(s) in the editor. Review and run (Ctrl+Enter).',
+      'Sem seleção: script da cena inteira no editor.': 'No selection: whole-scene script in the editor.',
+      'Pacote ZIP para engines': 'Engine ZIP package', 'PNGs 9-slice + manifest Unity, Unreal e Godot': '9-slice PNGs + Unity, Unreal and Godot manifest',
 
       // Rascunho
       'Rascunho / Blockout': 'Reference / Blockout', 'Remover': 'Remove', 'PNG, JPG ou WebP': 'PNG, JPG or WebP',
@@ -1423,9 +1563,11 @@
       syncInspector();
       syncReferenceControls();
       renderCustomTemplates();
+      buildResolutionOptions();
       refreshExportScaleOptions();
       copyJSONLabel.textContent = t('Copiar Metadados JSON');
       if (isPristineWelcomeScene()) buildWelcomeScene();
+      else rerunPresetInNewLanguage();
     }
 
     langSelect.addEventListener('change', () => setLanguage(langSelect.value));
@@ -1706,9 +1848,8 @@
       saveReferenceToStorage();
     }
 
-    async function loadProjectFromData(data) {
-      if (!data) return false;
-
+    // Manifest antigo (só "assets", sem "components"): converte para o formato de projeto.
+    function upgradeLegacyAssets(data) {
       if (data.assets && Array.isArray(data.assets) && !data.components) {
         data.components = data.assets.map((item, idx) => {
           const comp = createComponentPreset(item.type || 'Slot');
@@ -1729,6 +1870,11 @@
           data.canvasHeight = data.resolution.height;
         }
       }
+    }
+
+    async function loadProjectFromData(data) {
+      if (!data) return false;
+      upgradeLegacyAssets(data);
 
       if (!data.components || !Array.isArray(data.components)) {
         return false;
@@ -1901,6 +2047,9 @@
           warnings.push(`Sombra interna (${Math.round(shadowDepth)}px) passa da margem superior (${slice.component.top}px) e vai esticar junto com o centro.`);
         }
       }
+      if (hasTexture(comp)) {
+        warnings.push('Textura (ruído/scanlines) estica junto com o centro no modo Sliced. Use Tiled no centro ou aplique a textura na engine.');
+      }
       if (componentLabel(comp) && comp.exportWithText !== false) {
         warnings.push('Texto embutido no PNG distorce no modo Sliced. Use o frameFile e recrie o texto na engine (dados em "text").');
       }
@@ -1945,8 +2094,82 @@
       ringValue: 75, ringThickness: 10, ringStart: -90, ringColor1: '#f97316', ringColor2: '#fde047', ringTrackColor: '#1f2129', ringGlow: true,
       ringShowValue: false,
       exportStates: false,
-      shapeKind: 'star', shapeSides: 5, shapeInnerRatio: 0.45
+      shapeKind: 'star', shapeSides: 5, shapeInnerRatio: 0.45,
+      noise: 0, scanlines: 0, scanlineSpacing: 4,
+      anchorH: 'left', anchorV: 'top'
     };
+
+    // ---- Âncoras (R8, TDD no DOCS 2.9) ----
+    // Frações na convenção do Studio (Y para baixo). Esticar = de 0 a 1 no eixo.
+    const ANCHOR_H = ['left', 'center', 'right', 'stretch'];
+    const ANCHOR_V = ['top', 'middle', 'bottom', 'stretch'];
+    const ANCHOR_FRAC = { left: 0, center: 0.5, right: 1, top: 0, middle: 0.5, bottom: 1 };
+    const anchorRange = (mode) => (mode === 'stretch' ? [0, 1] : [ANCHOR_FRAC[mode], ANCHOR_FRAC[mode]]);
+    const round2 = (v) => { const n = Math.round(v * 100) / 100; return Object.is(n, -0) ? 0 : n; };
+
+    // rect = retângulo do componente e texRect = retângulo da textura (com padding), ambos em px de saída.
+    function describeAnchors(comp, rect, texRect, W, H) {
+      const [hMin, hMax] = anchorRange(comp.anchorH);
+      const [vMin, vMax] = anchorRange(comp.anchorV);
+      const stretchH = comp.anchorH === 'stretch', stretchV = comp.anchorV === 'stretch';
+      const pt = (x, y) => ({ x: round2(x), y: round2(y) });
+
+      // Unity: Y para cima. offsetMin/offsetMax = cantos do rect em relação às âncoras.
+      const uMinY = 1 - vMax, uMaxY = 1 - vMin;
+      const left = rect.x, right = rect.x + rect.w, top = H - rect.y, bottom = H - (rect.y + rect.h);
+      const unity = {
+        anchorMin: pt(hMin, uMinY), anchorMax: pt(hMax, uMaxY),
+        pivot: pt(stretchH ? 0.5 : hMin, stretchV ? 0.5 : 1 - vMin),
+        offsetMin: pt(left - hMin * W, bottom - uMinY * H),
+        offsetMax: pt(right - hMax * W, top - uMaxY * H)
+      };
+
+      // Unreal (CanvasPanel Slot, Y para baixo): eixo de ponto = posição do alinhamento + tamanho; esticado = margens.
+      const axis = (stretch, pos, size, total, frac) => (stretch ? [pos, total - (pos + size)] : [pos + frac * size - frac * total, size]);
+      const [ol, or] = axis(stretchH, rect.x, rect.w, W, hMin);
+      const [ot, ob] = axis(stretchV, rect.y, rect.h, H, vMin);
+      const unreal = {
+        minimum: pt(hMin, vMin), maximum: pt(hMax, vMax), alignment: pt(stretchH ? 0 : hMin, stretchV ? 0 : vMin),
+        offsets: { left: round2(ol), top: round2(ot), right: round2(or), bottom: round2(ob) }
+      };
+
+      // Godot: retângulo da textura, como no .tscn.
+      const godot = {
+        anchor_left: hMin, anchor_top: vMin, anchor_right: hMax, anchor_bottom: vMax,
+        offset_left: round2(texRect.x - hMin * W), offset_top: round2(texRect.y - vMin * H),
+        offset_right: round2(texRect.x + texRect.w - hMax * W), offset_bottom: round2(texRect.y + texRect.h - vMax * H)
+      };
+      return { horizontal: comp.anchorH, vertical: comp.anchorV, unity, unreal, godot };
+    }
+
+    // Prévia responsiva: reposiciona pelas âncoras quando a resolução muda (como as constraints do Figma).
+    function relayoutByAnchors(oldW, oldH, newW, newH) {
+      const axis = (mode, pos, size, oldT, newT) => {
+        if (mode === 'right' || mode === 'bottom') return [pos + (newT - oldT), size];
+        if (mode === 'center' || mode === 'middle') return [pos + (newT - oldT) / 2, size];
+        if (mode === 'stretch') return [pos, Math.max(8, size + (newT - oldT))];
+        return [pos, size];
+      };
+      let moved = 0;
+      state.components.forEach(c => {
+        const [x, w] = axis(c.anchorH, c.x, c.w, oldW, newW);
+        const [y, h] = axis(c.anchorV, c.y, c.h, oldH, newH);
+        if (x !== c.x || y !== c.y || w !== c.w || h !== c.h) moved++;
+        Object.assign(c, { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) });
+      });
+      return moved;
+    }
+
+    // Auto: âncora pela posição do centro do item (terços da cena); item com mais de 80% do eixo estica.
+    function autoAnchor(comp) {
+      const pick = (pos, size, total, modes) => {
+        if (size >= total * 0.8) return 'stretch';
+        const c = (pos + size / 2) / total;
+        return c < 1 / 3 ? modes[0] : c > 2 / 3 ? modes[2] : modes[1];
+      };
+      comp.anchorH = pick(comp.x, comp.w, state.canvasWidth, ['left', 'center', 'right']);
+      comp.anchorV = pick(comp.y, comp.h, state.canvasHeight, ['top', 'middle', 'bottom']);
+    }
 
     const HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
     const isImageDataUrl = (src) => typeof src === 'string' && /^data:image\//i.test(src);
@@ -1970,6 +2193,8 @@
           if (!HEX_COLOR_RE.test(comp[key])) comp[key] = value;
         }
       }
+      if (!ANCHOR_H.includes(comp.anchorH)) comp.anchorH = 'left';
+      if (!ANCHOR_V.includes(comp.anchorV)) comp.anchorV = 'top';
       if (comp.groupId !== null && !Number.isFinite(comp.groupId)) comp.groupId = null;
       if (comp.iconSrc !== null && !isImageDataUrl(comp.iconSrc)) comp.iconSrc = null;
       if (typeof comp.name !== 'string') comp.name = String(comp.name ?? '');
@@ -2094,8 +2319,7 @@
       Studio.clearGuides();
 
       const { width: W, height: H } = Studio.canvas;
-      const isEN = document.documentElement.lang === 'en';
-      const tr = (pt, en) => (isEN ? en : pt);
+      const tr = Studio.tr; // tr('texto PT', 'EN text'): segue o idioma da interface
 
       // 0. FUNDO TRANCADO (locked: true -> o clique atravessa e não atrapalha!)
       Studio.create('Painel', {
@@ -2772,7 +2996,10 @@
     function drawComponentText(targetCtx, comp, x, y, w, h) {
       ensureFontLoaded(comp);
       const label = String(componentLabel(comp));
-      const raw = comp.textUppercase ? label.toUpperCase() : label;
+      const cased = comp.textUppercase ? label.toUpperCase() : label;
+      // Teste de tradução (R7): só no canvas do editor; PNG, SVG e manifest continuam com o texto real.
+      const pseudo = state.pseudoLoc && targetCtx === ctx;
+      const raw = pseudo ? pseudoLocalize(cased) : cased;
       const size = Math.max(1, comp.fontSize);
       const pad = comp.textPadding ?? 8;
       const k = contextScale(targetCtx);
@@ -2824,8 +3051,156 @@
         targetCtx.fillStyle = comp.textColor;
         targetCtx.fillText(line, tx, ly);
       });
+
+      // Estouro no teste de tradução: bloco mais alto que a caixa ou palavra mais larga que ela.
+      if (pseudo) {
+        const room = Math.max(1, w - pad * 2);
+        clearEffect();
+        const overflow = blockH > h + 0.5 || lines.some(l => targetCtx.measureText(l).width > room + 0.5);
+        if (overflow) {
+          pseudoOverflowIds.add(comp.id);
+          targetCtx.setLineDash([8, 5]);
+          targetCtx.lineWidth = 2;
+          targetCtx.strokeStyle = '#f43f5e';
+          targetCtx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+        }
+      }
       targetCtx.restore();
     }
+
+    // ---- Teste de tradução / pseudo-localização (R7) ----
+    // Acentua as letras e alonga o texto como uma tradução faria (alemão, francês e português costumam
+    // passar de 30%; texto curto cresce mais), entre colchetes para mostrar onde cortou.
+    const PSEUDO_MAP = { a: 'á', e: 'é', i: 'í', o: 'ö', u: 'ü', c: 'ç', n: 'ñ', A: 'Å', E: 'É', I: 'Í', O: 'Ö', U: 'Ü', C: 'Ç', N: 'Ñ' };
+    const pseudoOverflowIds = new Set();
+    state.pseudoLoc = false;
+
+    function pseudoLocalize(text) {
+      return String(text).split('\n').map(line => {
+        if (!line.trim()) return line;
+        const n = line.length;
+        const grow = Math.ceil(n * (n <= 10 ? 0.6 : n <= 20 ? 0.4 : 0.3));
+        return `[${line.replace(/[aeiouncAEIOUNC]/g, ch => PSEUDO_MAP[ch])}${'·'.repeat(grow)}]`;
+      }).join('\n');
+    }
+
+    const chkPseudoLoc = document.getElementById('chkPseudoLoc');
+    const pseudoLocCount = document.getElementById('pseudoLocCount');
+    chkPseudoLoc.addEventListener('change', () => {
+      state.pseudoLoc = chkPseudoLoc.checked;
+      renderScene();
+    });
+
+    function updatePseudoLocCount() {
+      const n = pseudoOverflowIds.size;
+      pseudoLocCount.classList.toggle('hidden', !state.pseudoLoc);
+      pseudoLocCount.textContent = n ? t('{n} estouro(s)', { n }) : t('tudo cabe');
+      pseudoLocCount.classList.toggle('text-rose-400', n > 0);
+      pseudoLocCount.classList.toggle('text-emerald-400', n === 0);
+    }
+
+    // ---- Acessibilidade (R7) ----
+    // Simulação de daltonismo: filtro SVG (matrizes de Machado 2009) só no canvas do editor.
+    const visionSimSelect = document.getElementById('visionSimSelect');
+    visionSimSelect.addEventListener('change', () => {
+      mainCanvas.style.filter = visionSimSelect.value ? `url(#cb-${visionSimSelect.value})` : '';
+    });
+
+    // Contraste WCAG 2.x entre a cor do texto e o que está atrás dele: o próprio preenchimento (se
+    // for opaco o bastante) ou o item de baixo que cobre o centro do texto, ou a cor de fundo da cena.
+    function relativeLuminance(hex) {
+      const c = String(hex).replace('#', '');
+      const full = c.length === 3 ? c.split('').map(x => x + x).join('') : c.slice(0, 6);
+      const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      const n = parseInt(full, 16) || 0;
+      return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+    }
+
+    function contrastRatio(a, b) {
+      const la = relativeLuminance(a), lb = relativeLuminance(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    const fillColorsOf = (c) => (c.fillType === 'gradient' ? [c.fillColor1, c.fillColor2] : [c.fillColor1]);
+
+    function backgroundColorsBehind(comp) {
+      if (comp.fillOpacity >= 0.5) return fillColorsOf(comp);
+      const cx = comp.x + comp.w / 2, cy = comp.y + comp.h / 2;
+      const idx = state.components.indexOf(comp);
+      for (let i = idx - 1; i >= 0; i--) {
+        const c = state.components[i];
+        if (c.visible && c.fillOpacity >= 0.5 && pointInComponent(c, cx, cy)) return fillColorsOf(c);
+      }
+      return state.sceneBackground.mode === 'color' ? [state.sceneBackground.color] : null;
+    }
+
+    function textContrastInfo(comp) {
+      if (!comp || !componentLabel(comp)) return null;
+      const large = comp.fontSize >= 24 || (comp.fontSize >= 18.66 && comp.fontWeight >= 700);
+      const need = large ? 3 : 4.5;
+      const bgs = backgroundColorsBehind(comp);
+      if (!bgs) return { unknown: true, need };
+      let ratio = Math.min(...bgs.map(b => contrastRatio(comp.textColor, b)));
+      // Contorno de 1 px ou mais separa a letra do fundo: vale o melhor dos dois.
+      if (comp.textStrokeWidth >= 1) ratio = Math.max(ratio, Math.min(...bgs.map(b => contrastRatio(comp.textStrokeColor, b))));
+      return { ratio, need, ok: ratio >= need, large };
+    }
+
+    const textContrastBadge = document.getElementById('textContrastBadge');
+    function updateContrastBadge() {
+      const comp = getSelectedComponent();
+      const info = textContrastInfo(comp);
+      textContrastBadge.classList.toggle('hidden', !info);
+      if (!info) return;
+      textContrastBadge.classList.remove('text-emerald-300', 'border-emerald-700/60', 'text-amber-300', 'border-amber-600/60', 'text-zinc-400', 'border-zinc-700');
+      if (info.unknown) {
+        textContrastBadge.textContent = t('Contraste: fundo transparente, depende do que ficar atrás no jogo');
+        textContrastBadge.classList.add('text-zinc-400', 'border-zinc-700');
+        return;
+      }
+      const r = info.ratio.toFixed(1).replace('.', currentLang === 'en' ? '.' : ',');
+      textContrastBadge.textContent = info.ok
+        ? t('Contraste {r}:1 ✓ legível (mínimo {need}:1)', { r, need: String(info.need).replace('.', currentLang === 'en' ? '.' : ',') })
+        : t('Contraste {r}:1 ⚠ baixo: o mínimo é {need}:1', { r, need: String(info.need).replace('.', currentLang === 'en' ? '.' : ',') });
+      textContrastBadge.classList.add(...(info.ok ? ['text-emerald-300', 'border-emerald-700/60'] : ['text-amber-300', 'border-amber-600/60']));
+    }
+
+    // ---- Textura: ruído e scanlines (R7) ----
+    // O ruído é um ladrilho fixo (semente constante): a mesma imagem na tela, no PNG, no SVG e em
+    // qualquer máquina. Pixel branco ou preto com alfa aleatório, então funciona sobre qualquer cor.
+    const NOISE_TILE = 128;
+    let noiseTileCanvas = null, noiseTileDataUrl = null;
+
+    function noiseTile() {
+      if (noiseTileCanvas) return noiseTileCanvas;
+      let seed = 0x5eed1234;
+      const rand = () => { // mulberry32
+        seed = (seed + 0x6D2B79F5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+      noiseTileCanvas = document.createElement('canvas');
+      noiseTileCanvas.width = noiseTileCanvas.height = NOISE_TILE;
+      const c = noiseTileCanvas.getContext('2d');
+      const img = c.createImageData(NOISE_TILE, NOISE_TILE);
+      for (let i = 0; i < img.data.length; i += 4) {
+        const r = rand();
+        const v = r > 0.5 ? 255 : 0;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+        img.data[i + 3] = Math.round(Math.abs(r - 0.5) * 2 * 255);
+      }
+      c.putImageData(img, 0, 0);
+      return noiseTileCanvas;
+    }
+
+    function noiseTileUrl() {
+      if (!noiseTileDataUrl) noiseTileDataUrl = noiseTile().toDataURL('image/png');
+      return noiseTileDataUrl;
+    }
+
+    const hasTexture = (comp) => comp.noise > 0 || comp.scanlines > 0;
+    const scanlineGap = (comp) => Math.max(2, Math.min(32, Math.round(comp.scanlineSpacing || 4)));
 
     // options: { ignoreIcon, ignoreText }. Um boolean ainda é aceito (compatibilidade: ignoreIcon).
     function renderComponentToContext(targetCtx, comp, originX = 0, originY = 0, options = {}) {
@@ -2859,6 +3234,7 @@
 
       // 1. Drop shadow. A forma que projeta a sombra é desenhada fora da área visível e só a sombra
       //    volta para o lugar; assim um fundo semitransparente não mostra um "bloco preto" por trás.
+      // (R7: um cache de sprites para esta sombra foi medido e descartado; ver DOCS 5.5.)
       if (comp.dropShadow && fillAlpha > 0) {
         const far = 100000;
         targetCtx.save();
@@ -2907,6 +3283,27 @@
           btmGrad.addColorStop(1, `rgba(255, 255, 255, ${highlight * fillAlpha})`);
           targetCtx.fillStyle = btmGrad;
           targetCtx.fillRect(x, y, w, h);
+        }
+        targetCtx.restore();
+      }
+
+      // 3b. Textura (R7): ruído (grão) e scanlines (CRT), recortados pela forma, por cima do preenchimento.
+      if (hasTexture(comp) && fillAlpha > 0) {
+        targetCtx.save();
+        shapePath();
+        targetCtx.clip();
+        if (comp.noise > 0) {
+          targetCtx.globalAlpha = layerAlpha * Math.min(1, comp.noise) * fillAlpha;
+          const pattern = targetCtx.createPattern(noiseTile(), 'repeat');
+          pattern.setTransform(new DOMMatrix().translateSelf(x, y)); // ancorado no item: mover não "cintila"
+          targetCtx.fillStyle = pattern;
+          targetCtx.fillRect(x, y, w, h);
+        }
+        if (comp.scanlines > 0) {
+          const gap = scanlineGap(comp);
+          targetCtx.globalAlpha = layerAlpha * Math.min(1, comp.scanlines) * fillAlpha;
+          targetCtx.fillStyle = '#000';
+          for (let ly = y; ly < y + h; ly += gap) targetCtx.fillRect(x, ly, w, gap / 2);
         }
         targetCtx.restore();
       }
@@ -3258,6 +3655,21 @@
         parts.push(`<g clip-path="url(#${clip})">${inner}</g>`);
       }
 
+      // 3b. Textura (R7): o mesmo ladrilho de ruído do PNG (uma <image> por documento) e scanlines em pattern.
+      if (hasTexture(comp) && fillAlpha > 0) {
+        const clip = S.clip(shapeD());
+        if (comp.noise > 0) {
+          if (!S.noiseImageId) S.noiseImageId = S.def(id => `<image id="${id}" width="${NOISE_TILE}" height="${NOISE_TILE}" href="${noiseTileUrl()}"/>`);
+          const pat = S.def(id => `<pattern id="${id}" patternUnits="userSpaceOnUse" x="${svgNum(x)}" y="${svgNum(y)}" width="${NOISE_TILE}" height="${NOISE_TILE}"><use href="#${S.noiseImageId}"/></pattern>`);
+          parts.push(`<g clip-path="url(#${clip})" opacity="${svgNum(Math.min(1, comp.noise) * fillAlpha)}"><rect x="${svgNum(x)}" y="${svgNum(y)}" width="${svgNum(w)}" height="${svgNum(h)}" fill="url(#${pat})"/></g>`);
+        }
+        if (comp.scanlines > 0) {
+          const gap = scanlineGap(comp);
+          const pat = S.def(id => `<pattern id="${id}" patternUnits="userSpaceOnUse" x="${svgNum(x)}" y="${svgNum(y)}" width="${gap}" height="${gap}"><rect width="${gap}" height="${svgNum(gap / 2)}" fill="#000"/></pattern>`);
+          parts.push(`<g clip-path="url(#${clip})" opacity="${svgNum(Math.min(1, comp.scanlines) * fillAlpha)}"><rect x="${svgNum(x)}" y="${svgNum(y)}" width="${svgNum(w)}" height="${svgNum(h)}" fill="url(#${pat})"/></g>`);
+        }
+      }
+
       // 4. Imagem / ícone (dataURL embutido), recortado pela forma
       if (comp.icon && comp.iconSrc && !opts.ignoreIcon) {
         const natW = comp.icon.naturalWidth || comp.icon.width || w;
@@ -3379,9 +3791,12 @@
         ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
       }
       renderReferenceImage(ctx);
+      pseudoOverflowIds.clear();
       state.components.forEach(comp => {
         renderComponentToContext(ctx, comp, 0, 0);
       });
+      updatePseudoLocCount();
+      updateContrastBadge();
       updateGizmo();
       triggerAutoSave();
     }
@@ -3988,6 +4403,8 @@
       { id: 'propShapeSides', key: 'shapeSides', kind: 'int', min: 3, max: 12, label: 'shapeSidesVal', after: 'inspector' },
       { id: 'propShapeInnerRatio', key: 'shapeInnerRatio', kind: 'percent', label: 'shapeInnerVal' },
       { id: 'propOpacity', key: 'opacity', kind: 'percent', label: 'opacityVal' },
+      { id: 'propAnchorH', key: 'anchorH', kind: 'select' },
+      { id: 'propAnchorV', key: 'anchorV', kind: 'select' },
 
       { id: 'propText', key: 'text', kind: 'text' },
       { id: 'propFontFamily', key: 'fontFamily', kind: 'select' },
@@ -4063,7 +4480,10 @@
       { id: 'propInnerShadowHex', key: 'innerShadowColor', kind: 'hex' },
       { id: 'propInnerShadowOpacity', key: 'innerShadowOpacity', kind: 'percent', label: 'innerShadowOpacityVal' },
       { id: 'propInnerShadowSize', key: 'innerShadowSize', kind: 'int', min: 1, max: 200 },
-      { id: 'propInnerHighlight', key: 'innerHighlight', kind: 'percent', label: 'innerHighlightVal' }
+      { id: 'propInnerHighlight', key: 'innerHighlight', kind: 'percent', label: 'innerHighlightVal' },
+      { id: 'propNoise', key: 'noise', kind: 'percent', label: 'noiseVal' },
+      { id: 'propScanlines', key: 'scanlines', kind: 'percent', label: 'scanlinesVal' },
+      { id: 'propScanlineSpacing', key: 'scanlineSpacing', kind: 'int', min: 2, max: 32 }
     ];
 
     // Lê o valor digitado; undefined = entrada incompleta (ex.: "-" ou hex pela metade), não grava.
@@ -4507,15 +4927,206 @@
       snapLinesLayer.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
       resBadgeText.textContent = `${w} × ${h} px`;
+      setResSelectValue(w, h);
       refreshExportScaleOptions();
+      renderSafeArea();
       renderScene();
     }
 
-    canvasResSelect.addEventListener('change', () => {
-      applyCanvasResolution(canvasResSelect.value);
-      fitCanvasToViewport();
-      showToast(t('Resolução: {res}', { res: canvasResSelect.value }));
+    // ---- Resoluções por aparelho (R7) ----
+    // Desktop em paisagem; celular em retrato; tablet em paisagem. O botão de girar troca largura e
+    // altura de qualquer uma (os itens não se movem). Resolução fora da lista (projeto aberto, cena
+    // girada) entra no seletor como "Personalizada".
+    const RESOLUTION_PRESETS = [
+      { group: 'Desktop / Console', items: [
+        ['1280x720', '1280×720'], ['1920x1080', '1920×1080'], ['2560x1440', '2560×1440'], ['3840x2160', '3840×2160']] },
+      { group: 'Celular (retrato)', items: [
+        ['1080x1920', '1080×1920 9:16'], ['1080x2400', '1080×2400 Android'], ['1170x2532', '1170×2532 iPhone']] },
+      { group: 'Tablet (paisagem)', items: [
+        ['2048x1536', '2048×1536 iPad'], ['2732x2048', '2732×2048 iPad Pro']] }
+    ];
+
+    // Área segura de referência, em px da própria resolução (top, right, bottom, left).
+    // iPhone (13/14, @3x) e iPad Pro (@2x): insets do Apple HIG. Android 20:9: status bar com câmera
+    // furada + barra de gestos, valores típicos (variam por modelo). 9:16 sem notch: só a status bar.
+    // 1920×1080 em paisagem não tem área: é também a resolução de desktop.
+    const SAFE_AREAS = {
+      '1170x2532': { top: 141, right: 0, bottom: 102, left: 0 },
+      '2532x1170': { top: 0, right: 141, bottom: 63, left: 141 },
+      '1080x2400': { top: 96, right: 0, bottom: 48, left: 0 },
+      '2400x1080': { top: 0, right: 96, bottom: 48, left: 96 },
+      '1080x1920': { top: 72, right: 0, bottom: 0, left: 0 },
+      '2048x1536': { top: 40, right: 0, bottom: 0, left: 0 },
+      '1536x2048': { top: 40, right: 0, bottom: 0, left: 0 },
+      '2732x2048': { top: 48, right: 0, bottom: 40, left: 0 },
+      '2048x2732': { top: 48, right: 0, bottom: 40, left: 0 }
+    };
+    const safeAreaOverlay = document.getElementById('safeAreaOverlay');
+    const safeAreaRect = document.getElementById('safeAreaRect');
+    const btnToggleSafeArea = document.getElementById('btnToggleSafeArea');
+    const btnRotateRes = document.getElementById('btnRotateRes');
+    state.showSafeArea = true;
+
+    function currentSafeArea() {
+      return SAFE_AREAS[`${state.canvasWidth}x${state.canvasHeight}`] || null;
+    }
+
+    function buildResolutionOptions() {
+      const current = `${state.canvasWidth}x${state.canvasHeight}`;
+      canvasResSelect.innerHTML = '';
+      RESOLUTION_PRESETS.forEach(({ group, items }) => {
+        const og = document.createElement('optgroup');
+        og.label = t(group);
+        items.forEach(([value, label]) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = label;
+          og.appendChild(opt);
+        });
+        canvasResSelect.appendChild(og);
+      });
+      const [w, h] = current.split('x').map(Number);
+      setResSelectValue(w, h);
+    }
+
+    // A personalizada fica num grupo próprio: o texto da opção é só "W×H" e o seletor não alarga a barra.
+    function setResSelectValue(w, h) {
+      const value = `${w}x${h}`;
+      canvasResSelect.querySelectorAll('optgroup[data-custom]').forEach(g => { if (g.firstElementChild.value !== value) g.remove(); });
+      if (![...canvasResSelect.options].some(o => o.value === value)) {
+        const og = document.createElement('optgroup');
+        og.dataset.custom = '1';
+        og.label = t('Personalizada');
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = `${w}×${h}`;
+        og.appendChild(opt);
+        canvasResSelect.appendChild(og);
+      }
+      canvasResSelect.value = value;
+    }
+
+    function renderSafeArea() {
+      const sa = currentSafeArea();
+      btnToggleSafeArea.disabled = !sa;
+      btnToggleSafeArea.classList.toggle('text-figma-accent', !!sa && state.showSafeArea);
+      safeAreaOverlay.classList.toggle('hidden', !sa || !state.showSafeArea);
+      if (!sa) return;
+      const W = state.canvasWidth, H = state.canvasHeight;
+      const place = (el, l, t, w, h) => Object.assign(el.style, { left: `${l}px`, top: `${t}px`, width: `${Math.max(0, w)}px`, height: `${Math.max(0, h)}px` });
+      const bands = Object.fromEntries([...safeAreaOverlay.querySelectorAll('.safe-band')].map(el => [el.dataset.side, el]));
+      place(bands.top, 0, 0, W, sa.top);
+      place(bands.bottom, 0, H - sa.bottom, W, sa.bottom);
+      place(bands.left, 0, sa.top, sa.left, H - sa.top - sa.bottom);
+      place(bands.right, W - sa.right, sa.top, sa.right, H - sa.top - sa.bottom);
+      place(safeAreaRect, sa.left, sa.top, W - sa.left - sa.right, H - sa.top - sa.bottom);
+    }
+
+    document.getElementById('btnAutoAnchor').addEventListener('click', () => {
+      const sel = getSelectedComponents();
+      if (!sel.length) return;
+      sel.forEach(autoAnchor);
+      syncInspector();
+      renderScene();
+      showToast(t('Âncora automática em {n} item(ns).', { n: sel.length }));
     });
+
+    // Troca pelo usuário (seletor ou girar): os itens com âncora se reposicionam (R8). Abrir projeto e
+    // desfazer chamam applyCanvasResolution direto e não passam por aqui.
+    function changeResolutionByUser(res) {
+      const oldW = state.canvasWidth, oldH = state.canvasHeight;
+      applyCanvasResolution(res);
+      const moved = relayoutByAnchors(oldW, oldH, state.canvasWidth, state.canvasHeight);
+      if (moved) {
+        syncInspector();
+        renderScene();
+      }
+      fitCanvasToViewport();
+      return moved;
+    }
+
+    canvasResSelect.addEventListener('change', () => {
+      const moved = changeResolutionByUser(canvasResSelect.value);
+      showToast(moved
+        ? t('Resolução: {res} ({n} item(ns) ajustado(s) pelas âncoras)', { res: canvasResSelect.value, n: moved })
+        : t('Resolução: {res}', { res: canvasResSelect.value }));
+    });
+
+    btnRotateRes.addEventListener('click', () => {
+      const moved = changeResolutionByUser(`${state.canvasHeight}x${state.canvasWidth}`);
+      const res = `${state.canvasWidth}x${state.canvasHeight}`;
+      showToast(moved
+        ? t('Cena girada: {res} ({n} item(ns) ajustado(s) pelas âncoras)', { res, n: moved })
+        : t('Cena girada: {res}', { res }));
+    });
+
+    btnToggleSafeArea.addEventListener('click', () => {
+      state.showSafeArea = !state.showSafeArea;
+      renderSafeArea();
+      saveEditorPrefs();
+    });
+
+    // ---- Largura dos painéis laterais (R7) ----
+    // Arrastar a alça ajusta; duplo clique volta ao padrão; setas movem 16 px (Shift = 64).
+    // O viewport sempre fica com pelo menos MIN_VIEWPORT px. Preferência do editor, não do projeto.
+    const PANEL_LIMITS = { left: { min: 200, max: 480, def: 256 }, right: { min: 260, max: 560, def: 320 } };
+    const MIN_VIEWPORT = 360;
+    const panels = { left: document.getElementById('leftPanel'), right: document.getElementById('rightPanel') };
+    state.panelWidths = { left: PANEL_LIMITS.left.def, right: PANEL_LIMITS.right.def };
+
+    function setPanelWidth(side, width) {
+      const lim = PANEL_LIMITS[side];
+      const other = side === 'left' ? 'right' : 'left';
+      const room = window.innerWidth - state.panelWidths[other] - MIN_VIEWPORT;
+      const w = Math.round(Math.max(lim.min, Math.min(lim.max, room, width)));
+      state.panelWidths[side] = w;
+      panels[side].style.width = `${w}px`;
+      return w;
+    }
+
+    document.querySelectorAll('.panel-resizer').forEach(handle => {
+      const side = handle.dataset.panel;
+      handle.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const startX = e.clientX, startW = state.panelWidths[side];
+        handle.setPointerCapture(e.pointerId);
+        handle.classList.add('dragging');
+        document.body.classList.add('resizing-panels');
+        const move = (ev) => setPanelWidth(side, startW + (side === 'left' ? ev.clientX - startX : startX - ev.clientX));
+        const up = () => {
+          handle.removeEventListener('pointermove', move);
+          handle.removeEventListener('pointerup', up);
+          handle.removeEventListener('pointercancel', up);
+          handle.classList.remove('dragging');
+          document.body.classList.remove('resizing-panels');
+          saveEditorPrefs();
+        };
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up);
+        handle.addEventListener('pointercancel', up);
+      });
+      handle.addEventListener('dblclick', () => {
+        setPanelWidth(side, PANEL_LIMITS[side].def);
+        saveEditorPrefs();
+      });
+      handle.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        e.preventDefault();
+        e.stopPropagation(); // não move a seleção na cena
+        const step = (e.shiftKey ? 64 : 16) * (e.key === 'ArrowRight' ? 1 : -1) * (side === 'left' ? 1 : -1);
+        setPanelWidth(side, state.panelWidths[side] + step);
+        saveEditorPrefs();
+      });
+    });
+
+    // Janela menor: painéis encolhem para o viewport não sumir.
+    window.addEventListener('resize', () => {
+      setPanelWidth('right', state.panelWidths.right);
+      setPanelWidth('left', state.panelWidths.left);
+    });
+    // Réguas acompanham qualquer mudança de tamanho do viewport (painéis ou janela).
+    if (window.ResizeObserver) new ResizeObserver(() => drawRulers()).observe(viewportContainer);
 
     // ===== Grid, snap e réguas (preferências do editor: ficam só neste navegador) =====
     const EDITOR_PREFS_KEY = 'game_dev_ui_studio_editor_prefs';
@@ -4525,7 +5136,8 @@
       try {
         localStorage.setItem(EDITOR_PREFS_KEY, JSON.stringify({
           snapToGrid: state.snapToGrid, gridSize: state.gridSize, showGrid: state.showGrid, showRulers: state.showRulers,
-          exportHeight: state.exportHeight, exportFormat: state.exportFormat
+          exportHeight: state.exportHeight, exportFormat: state.exportFormat, showSafeArea: state.showSafeArea,
+          panelWidths: state.panelWidths
         }));
       } catch (err) {}
     }
@@ -4539,7 +5151,17 @@
         if (typeof prefs.showRulers === 'boolean') state.showRulers = prefs.showRulers;
         if (EXPORT_TARGET_HEIGHTS.includes(prefs.exportHeight)) state.exportHeight = prefs.exportHeight;
         if (prefs.exportFormat === 'svg' || prefs.exportFormat === 'png') state.exportFormat = prefs.exportFormat;
+        if (typeof prefs.showSafeArea === 'boolean') state.showSafeArea = prefs.showSafeArea;
+        if (prefs.panelWidths) {
+          ['left', 'right'].forEach(side => {
+            const w = Number(prefs.panelWidths[side]);
+            if (Number.isFinite(w)) state.panelWidths[side] = w;
+          });
+        }
       } catch (err) {}
+      setPanelWidth('left', state.panelWidths.left);
+      setPanelWidth('right', state.panelWidths.right);
+      renderSafeArea();
       applyEditorPrefsUI();
       refreshExportScaleOptions();
       exportFormatSelect.value = state.exportFormat;
@@ -4553,22 +5175,23 @@
     });
 
     // ---- Resolução do export (R5) ----
-    // A saída descreve a UI na resolução escolhida: escala = altura alvo / altura da cena.
+    // A saída descreve a UI na resolução escolhida: escala = lado menor alvo / lado menor da cena
+    // (em paisagem é a altura; em retrato, a largura: 1080×1920 em "4K" sai 2160×3840).
     // Só ampliações: numa cena 1440p, "2K" é a nativa e 1080p não aparece.
     const EXPORT_TARGET_HEIGHTS = [1080, 1440, 2160];
     const EXPORT_TARGET_LABELS = { 1080: '1080p', 1440: '2K', 2160: '4K' };
-    state.exportHeight = 0; // 0 = nativa
+    state.exportHeight = 0; // 0 = nativa (nome antigo mantido nas preferências: é o lado menor alvo)
 
     function exportScale() {
-      const h = state.exportHeight;
-      return h && h > state.canvasHeight ? h / state.canvasHeight : 1;
+      const target = state.exportHeight, short = Math.min(state.canvasWidth, state.canvasHeight);
+      return target && target > short ? target / short : 1;
     }
 
     function refreshExportScaleOptions() {
-      const w = state.canvasWidth, h = state.canvasHeight;
+      const w = state.canvasWidth, h = state.canvasHeight, short = Math.min(w, h);
       const options = [{ value: 0, label: `${t('Nativo')} ${w}×${h}` }];
-      EXPORT_TARGET_HEIGHTS.filter(th => th > h).forEach(th => {
-        options.push({ value: th, label: `${EXPORT_TARGET_LABELS[th]} ${Math.round(w * th / h)}×${th}` });
+      EXPORT_TARGET_HEIGHTS.filter(th => th > short).forEach(th => {
+        options.push({ value: th, label: `${EXPORT_TARGET_LABELS[th]} ${Math.round(w * th / short)}×${Math.round(h * th / short)}` });
       });
       if (!options.some(o => o.value === state.exportHeight)) state.exportHeight = 0;
       exportScaleSelect.innerHTML = '';
@@ -4793,6 +5416,12 @@
         ys.push(b.y, b.y + b.h / 2, b.y + b.h);
       });
       if (state.showRulers) state.guides.forEach(g => (g.axis === 'v' ? xs : ys).push(g.pos));
+      // Bordas da área segura (mobile) também atraem, quando ela está visível.
+      const sa = state.showSafeArea ? currentSafeArea() : null;
+      if (sa) {
+        xs.push(sa.left, state.canvasWidth - sa.right);
+        ys.push(sa.top, state.canvasHeight - sa.bottom);
+      }
       return { xs, ys };
     }
 
@@ -5193,6 +5822,16 @@
       updateCanvasWorldTransform();
     }
 
+    // Botões de zoom da barra: + e − a partir do centro do viewport; 1:1 = 100% no centro; Fit enquadra.
+    function zoomFromCenter(newZoom) {
+      const rect = viewportContainer.getBoundingClientRect();
+      zoomAt(newZoom, rect.left + rect.width / 2, rect.top + rect.height / 2);
+    }
+    btnZoomIn.addEventListener('click', () => zoomFromCenter(state.zoom * 1.2));
+    btnZoomOut.addEventListener('click', () => zoomFromCenter(state.zoom / 1.2));
+    btnZoomReset.addEventListener('click', () => zoomFromCenter(1));
+    btnZoomFit.addEventListener('click', fitCanvasToViewport);
+
     // Duplo clique num componente: seleciona e leva o foco para o texto no Inspector.
     viewportContainer.addEventListener('dblclick', (e) => {
       const coords = getCanvasCoords(e.clientX, e.clientY);
@@ -5220,6 +5859,11 @@
       if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files[0]) return;
 
       const file = e.dataTransfer.files[0];
+      // Layout .json solto no canvas: soma à cena (Abrir continua sendo o jeito de substituir).
+      if (/\.json$/i.test(file.name) || file.type === 'application/json') {
+        importLayoutFile(file);
+        return;
+      }
       const coords = getCanvasCoords(e.clientX, e.clientY);
       const hitComp = hitTest(coords.x, coords.y);
       
@@ -5273,6 +5917,18 @@
         e.preventDefault();
         inspSearch.focus();
         inspSearch.select();
+      } else if (!mod && e.shiftKey && e.code === 'Digit1') {
+        e.preventDefault();
+        fitCanvasToViewport();
+      } else if (!mod && e.shiftKey && e.code === 'Digit0') {
+        e.preventDefault();
+        zoomFromCenter(1);
+      } else if (mod && (e.key === '=' || e.key === '+' || e.code === 'NumpadAdd')) {
+        e.preventDefault(); // no lugar do zoom da página do navegador
+        zoomFromCenter(state.zoom * 1.2);
+      } else if (mod && (e.key === '-' || e.code === 'NumpadSubtract')) {
+        e.preventDefault();
+        zoomFromCenter(state.zoom / 1.2);
       } else if (!mod && e.shiftKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         toggleRulers();
@@ -5285,6 +5941,9 @@
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         duplicateCurrentComponent();
+      } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        mergeSelection();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         if (e.shiftKey) {
@@ -5404,10 +6063,15 @@
 
       pasteCount = payload.copyId && payload.copyId === lastPasteCopyId ? pasteCount + 1 : 1;
       lastPasteCopyId = payload.copyId;
-      const offset = 16 * pasteCount;
+      const pasted = await insertComponents(sources, payload.groups, 16 * pasteCount);
+      showToast(t('{n} elemento(s) colado(s)!', { n: pasted.length }));
+      return pasted;
+    }
 
+    // Base do colar e do "Importar para a cena": ids e grupos novos, no topo da pilha, já selecionados.
+    async function insertComponents(sources, groups, offset = 0) {
       const groupMap = new Map();
-      (payload.groups || []).forEach(g => {
+      (groups || []).forEach(g => {
         if (!sources.some(c => c.groupId === g.id)) return;
         const id = state.nextGroupId++;
         state.groups.push({ id, name: String(g.name || `${t('Grupo')} ${id}`), visible: g.visible !== false, collapsed: false });
@@ -5439,9 +6103,152 @@
       syncInspector();
       renderScene();
       triggerAutoSave();
-      showToast(t('{n} elemento(s) colado(s)!', { n: pasted.length }));
       return pasted;
     }
+
+    // ---- Importar layout para a cena (R7) ----
+    // "Abrir" substitui o projeto; isto SOMA os itens de outro .json aos atuais. Passa pela mesma
+    // validação do Abrir (sanitizeProjectData + normalizeComponent). Layout de outra resolução é
+    // escalado para caber na cena atual e centralizado; guias, fundo e rascunho dele são ignorados.
+    const PIXEL_PROPS = ['x', 'y', 'w', 'h', 'radius', 'radiusTL', 'radiusTR', 'radiusBR', 'radiusBL', 'borderWidth',
+      'shadowBlur', 'shadowOffsetX', 'shadowOffsetY', 'innerShadowSize', 'iconOffsetX', 'iconOffsetY',
+      'fontSize', 'letterSpacing', 'textStrokeWidth', 'textPadding', 'ringThickness'];
+
+    async function importLayoutIntoScene(data) {
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+      upgradeLegacyAssets(data);
+      if (!Array.isArray(data.components)) return null;
+      sanitizeProjectData(data);
+      const validTypes = new Set(Object.values(TYPE_ALIASES));
+      const sources = data.components.filter(c => validTypes.has(c.type)).map(c => normalizeComponent(c));
+      if (sources.length === 0) return null;
+
+      const srcW = data.canvasWidth || state.canvasWidth, srcH = data.canvasHeight || state.canvasHeight;
+      const k = Math.min(state.canvasWidth / srcW, state.canvasHeight / srcH);
+      const dx = (state.canvasWidth - srcW * k) / 2, dy = (state.canvasHeight - srcH * k) / 2;
+      sources.forEach(c => {
+        if (k !== 1) PIXEL_PROPS.forEach(p => { c[p] = Math.round(c[p] * k * 100) / 100; });
+        c.x = Math.round(c.x + dx);
+        c.y = Math.round(c.y + dy);
+        c.w = Math.round(c.w);
+        c.h = Math.round(c.h);
+      });
+      const added = await insertComponents(sources, data.groups, 0);
+      return { added, scale: k, from: `${srcW}x${srcH}` };
+    }
+
+    async function importLayoutFile(file) {
+      if (file.size > MAX_PROJECT_BYTES) {
+        showToast(t('Arquivo grande demais (máx. {n} MB).', { n: MAX_PROJECT_BYTES / 1048576 }));
+        return null;
+      }
+      try {
+        const result = await importLayoutIntoScene(JSON.parse(await file.text()));
+        if (!result) { showToast('Arquivo de projeto inválido!'); return null; }
+        showToast(result.scale === 1
+          ? t('{n} item(ns) importado(s) para a cena!', { n: result.added.length })
+          : t('{n} item(ns) importado(s), escalados de {from} para caber na cena.', { n: result.added.length, from: result.from }));
+        return result;
+      } catch (err) {
+        showToast('Erro ao carregar JSON do projeto');
+        return null;
+      }
+    }
+
+    document.getElementById('inputImportLayout').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (file) importLayoutFile(file);
+    });
+
+    // ---- Mesclar camadas (Ctrl+E, R7) ----
+    // Os itens visíveis da seleção viram UMA imagem (item "só imagem", igual ao colar imagem), no lugar
+    // do mais alto deles na pilha. Rasteriza em 2x (cobre o export 4K de uma cena 1080p sem aviso de
+    // "borrado") com folga para sombra e brilho, e corta a transparência em volta. Um Ctrl+Z desfaz.
+    const MERGE_SCALE = 2;
+    const MERGE_PAD = 96;
+    const MERGE_MAX_SIDE = 8192;
+
+    async function mergeSelection(targets) {
+      const picked = new Set((targets || getSelectedComponents()).map(c => c.id));
+      const comps = state.components.filter(c => picked.has(c.id) && c.visible); // ordem das camadas
+      if (comps.length < 2) {
+        showToast('Selecione 2 ou mais itens visíveis para mesclar.');
+        return null;
+      }
+      await ensureFontsReady(comps);
+
+      const box = unionAABB(comps);
+      const left = Math.floor(box.x) - MERGE_PAD, top = Math.floor(box.y) - MERGE_PAD;
+      const spanW = Math.ceil(box.x + box.w) + MERGE_PAD - left, spanH = Math.ceil(box.y + box.h) + MERGE_PAD - top;
+      const scale = Math.min(MERGE_SCALE, MERGE_MAX_SIDE / spanW, MERGE_MAX_SIDE / spanH);
+      const work = document.createElement('canvas');
+      work.width = Math.ceil(spanW * scale);
+      work.height = Math.ceil(spanH * scale);
+      const wctx = work.getContext('2d', { willReadFrequently: true });
+      wctx.scale(scale, scale);
+      comps.forEach(c => renderComponentToContext(wctx, c, -left, -top));
+
+      // Corte: caixa dos pixels com alfa, arredondada para pixels inteiros da cena.
+      const { data } = wctx.getImageData(0, 0, work.width, work.height);
+      let minX = work.width, minY = work.height, maxX = -1, maxY = -1;
+      for (let y = 0; y < work.height; y++) {
+        const row = y * work.width * 4;
+        for (let x = 0; x < work.width; x++) {
+          if (data[row + x * 4 + 3] === 0) continue;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+      if (maxX < 0) {
+        work.width = work.height = 0;
+        showToast('Nada visível para mesclar.');
+        return null;
+      }
+      const sx0 = Math.floor(minX / scale), sy0 = Math.floor(minY / scale);
+      const sx1 = Math.ceil((maxX + 1) / scale), sy1 = Math.ceil((maxY + 1) / scale);
+      const out = document.createElement('canvas');
+      out.width = Math.round((sx1 - sx0) * scale);
+      out.height = Math.round((sy1 - sy0) * scale);
+      out.getContext('2d').drawImage(work, Math.round(sx0 * scale), Math.round(sy0 * scale), out.width, out.height, 0, 0, out.width, out.height);
+      work.width = work.height = 0;
+      const src = out.toDataURL('image/png');
+      out.width = out.height = 0;
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = src;
+      });
+
+      const groupIds = new Set(comps.map(c => c.groupId));
+      const merged = createComponentPreset('Slot');
+      Object.assign(merged, BARE_BOX, {
+        name: `${t('Mesclado')} ${merged.id}`, radius: 0, text: '', exportStates: false,
+        x: left + sx0, y: top + sy0, w: sx1 - sx0, h: sy1 - sy0,
+        iconFit: 'stretch', iconScale: 1, iconOpacity: 1, iconOffsetX: 0, iconOffsetY: 0, iconFilter: 'none',
+        icon: img, iconSrc: src,
+        groupId: groupIds.size === 1 ? [...groupIds][0] : null
+      });
+
+      const topmost = comps[comps.length - 1];
+      const next = [];
+      state.components.forEach(c => {
+        if (!picked.has(c.id) || !c.visible) next.push(c);
+        if (c === topmost) next.push(merged);
+      });
+      state.components = next;
+      pruneEmptyGroups();
+      state.selectedIds = [merged.id];
+      state.selectedId = merged.id;
+      refreshAll();
+      showToast(t('{n} itens mesclados em "{name}". Ctrl+Z desfaz.', { n: comps.length, name: merged.name }));
+      return merged;
+    }
+
+    document.getElementById('btnMergeLayers').addEventListener('click', () => mergeSelection());
 
     document.addEventListener('copy', (e) => {
       if (editorClipboardBlocked(e)) return;
@@ -5995,7 +6802,7 @@
 
       const usedNames = new Set();
       let focusNone = null;
-      for (const { comp, slice, godot, file, scale = 1, trackFile, fillFile, hoverFile, pressedFile } of entries) {
+      for (const { comp, slice, godot, file, scale = 1, trackFile, fillFile, hoverFile, pressedFile, anchors } of entries) {
         // Nome de nó não aceita . : @ / " % e precisa ser único entre irmãos.
         let name = String(comp.name || '').replace(/[.:@\/"%]/g, '_').trim() || `Item_${comp.id}`;
         if (usedNames.has(name)) name = `${name}_${comp.id}`;
@@ -6003,7 +6810,17 @@
 
         const group = comp.groupId != null ? state.groups.find(g => g.id === comp.groupId) : null;
         const header = `[node name=${gdString(name)} type="${godot.node}" parent="."${group ? ` groups=[${gdString(group.name)}]` : ''}]`;
-        const props = [
+        // Âncoras (R8): fora do padrão esquerda/topo, o nó usa layout por âncoras; direita/base crescem para o início.
+        const anchored = anchors && (comp.anchorH !== 'left' || comp.anchorV !== 'top');
+        const grow = (mode) => (mode === 'right' || mode === 'bottom' ? 0 : mode === 'left' || mode === 'top' ? 1 : 2);
+        const props = anchored ? [
+          'layout_mode = 1',
+          `anchor_left = ${gdFloat(anchors.godot.anchor_left)}`, `anchor_top = ${gdFloat(anchors.godot.anchor_top)}`,
+          `anchor_right = ${gdFloat(anchors.godot.anchor_right)}`, `anchor_bottom = ${gdFloat(anchors.godot.anchor_bottom)}`,
+          `offset_left = ${gdFloat(anchors.godot.offset_left)}`, `offset_top = ${gdFloat(anchors.godot.offset_top)}`,
+          `offset_right = ${gdFloat(anchors.godot.offset_right)}`, `offset_bottom = ${gdFloat(anchors.godot.offset_bottom)}`,
+          `grow_horizontal = ${grow(comp.anchorH)}`, `grow_vertical = ${grow(comp.anchorV)}`
+        ] : [
           'layout_mode = 0',
           `offset_left = ${gdFloat(godot.position.x)}`,
           `offset_top = ${gdFloat(godot.position.y)}`,
@@ -6068,6 +6885,68 @@
       return sections.join('\n\n') + '\n';
     }
 
+    // ---- Tema da Godot (R7) ----
+    // Cada Botão vira uma "type variation" de Button (normal/hover/pressed) e cada Painel/Slot uma de
+    // PanelContainer, com StyleBoxTexture 9-slice. expand_margin = padding transparente do PNG, então a
+    // moldura cobre exatamente o retângulo do Control. Uso na Godot: Theme = game_ui_theme.tres no nó
+    // raiz; em cada Button/PanelContainer, Theme Type Variation = nome listado no manifest.
+    function buildGodotTheme(entries) {
+      const ext = [], subs = [], props = [], variations = [];
+      const texIds = new Map();
+      const texture = (file) => {
+        if (!texIds.has(file)) {
+          const id = `${texIds.size + 1}_tex`;
+          texIds.set(file, id);
+          ext.push(`[ext_resource type="Texture2D" path="${GODOT_RES}${file}" id="${id}"]`);
+        }
+        return `ExtResource("${texIds.get(file)}")`;
+      };
+      const sides = ['left', 'top', 'right', 'bottom'];
+      const used = new Set();
+      let focusNone = null;
+
+      for (const { comp, slice, godot, file, scale = 1, hoverFile, pressedFile } of entries) {
+        const base = godot.node === 'Button' ? 'Button' : godot.node === 'NinePatchRect' ? 'PanelContainer' : null;
+        if (!base) continue;
+        const slug = foldText(comp.name).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || `item_${comp.id}`;
+        let name = `${base === 'Button' ? 'Btn' : 'Panel'}_${slug}`;
+        if (used.has(name)) name = `${name}_${comp.id}`;
+        used.add(name);
+
+        const box = (f) => {
+          const id = `StyleBoxTexture_${subs.length + 1}`;
+          subs.push([`[sub_resource type="StyleBoxTexture" id="${id}"]`, `texture = ${texture(f)}`,
+            ...sides.map(s => `texture_margin_${s} = ${gdFloat(godot.patchMargin[s])}`),
+            ...sides.map(s => `expand_margin_${s} = ${gdFloat(slice.pad)}`)].join('\n'));
+          return `SubResource("${id}")`;
+        };
+
+        props.push(`${name}/base_type = &"${base}"`);
+        if (base === 'Button') {
+          const normal = box(file);
+          if (!focusNone) {
+            focusNone = 'StyleBoxEmpty_focus';
+            subs.push(`[sub_resource type="StyleBoxEmpty" id="${focusNone}"]`);
+          }
+          props.push(`${name}/styles/normal = ${normal}`,
+            `${name}/styles/hover = ${hoverFile ? box(hoverFile) : normal}`,
+            `${name}/styles/pressed = ${pressedFile ? box(pressedFile) : normal}`,
+            `${name}/styles/focus = SubResource("${focusNone}")`);
+          if (godot.label) {
+            const txt = describeText(comp, scale);
+            props.push(`${name}/colors/font_color = ${gdColor(txt.color)}`, `${name}/font_sizes/font_size = ${Math.round(txt.fontSize)}`);
+          }
+        } else {
+          props.push(`${name}/styles/panel = ${box(file)}`);
+        }
+        variations.push({ name, baseType: base, component: comp.name });
+      }
+      if (!variations.length) return null;
+      const text = [`[gd_resource type="Theme" load_steps=${ext.length + subs.length + 1} format=3]`,
+        ext.join('\n'), ...subs, ['[resource]', ...props].join('\n')].filter(Boolean).join('\n\n') + '\n';
+      return { text, variations };
+    }
+
     btnExportBatch.addEventListener('click', async () => {
       if (state.components.length === 0) {
         showToast('Nenhum componente para exportar!');
@@ -6088,14 +6967,26 @@
       const godotEntries = [];
       let barsFolder = null;
 
+      // v6 (R7): orientação, área segura e Canvas Scaler, para cenas mobile.
+      const portrait = state.canvasHeight > state.canvasWidth;
+      const safe = currentSafeArea();
       const manifest = {
         project: "Game Dev UI Studio Export",
-        manifestVersion: 5,
+        manifestVersion: 6,
         resolution: { width: outW, height: outH },
         designResolution: { width: state.canvasWidth, height: state.canvasHeight },
+        orientation: portrait ? 'portrait' : 'landscape',
+        safeArea: safe ? { top: px(safe.top), right: px(safe.right), bottom: px(safe.bottom), left: px(safe.left) } : null,
         exportScale: +scale.toFixed(4),
         exportPadding: px(EXPORT_PAD),
         engineReady: true,
+        // Canvas Scaler do Unity: retrato casa a largura (0), paisagem casa a altura (1).
+        unityCanvasScaler: {
+          uiScaleMode: 'ScaleWithScreenSize',
+          referenceResolution: { x: outW, y: outH },
+          screenMatchMode: 'MatchWidthOrHeight',
+          matchWidthOrHeight: portrait ? 0 : 1
+        },
         godot: {
           folder: GODOT_DIR,
           scene: `${GODOT_DIR}/game_ui.tscn`,
@@ -6104,7 +6995,9 @@
             'display/window/size/viewport_width': outW,
             'display/window/size/viewport_height': outH,
             'display/window/stretch/mode': 'canvas_items',
-            'display/window/stretch/aspect': 'keep'
+            'display/window/stretch/aspect': portrait ? 'keep_width' : 'keep',
+            // 0 = paisagem, 1 = retrato (enum de display/window/handheld/orientation)
+            'display/window/handheld/orientation': portrait ? 1 : 0
           }
         },
         assets: []
@@ -6165,6 +7058,7 @@
           },
           godotSettings: describeGodot(comp, slice, scale),
           engines: describeOtherEngines(slice),
+          anchors: null, // preenchido logo abaixo (precisa do retângulo da textura da Godot)
           text: describeText(comp, scale),
           // Unity: Z positivo é anti-horário, por isso o sinal invertido. UMG: Angle positivo é horário.
           rotation: comp.rotation ? { degrees: comp.rotation, unityRotationZ: -comp.rotation, unrealAngle: comp.rotation } : null,
@@ -6173,6 +7067,9 @@
         };
         const blurWarning = iconUpscaleWarning(comp, scale);
         if (blurWarning) asset.warnings.push(blurWarning);
+        const gs = asset.godotSettings;
+        asset.anchors = describeAnchors(comp, { x: px(comp.x), y: px(comp.y), w: px(comp.w), h: px(comp.h) },
+          { x: gs.position.x, y: gs.position.y, w: gs.size.x, h: gs.size.y }, outW, outH);
 
         // Estados hover/pressed (R5): mesma geometria e margens, só o brilho muda.
         let hoverFile = null, pressedFile = null;
@@ -6228,11 +7125,16 @@
         // Godot: a pasta leva só as texturas que a cena usa (a Barra usa trilho + preenchimento).
         if (!asset.bar && asset.godotSettings.node !== 'Control') godotFolder.file(fileName, blobWithIcon);
         godotEntries.push({
-          comp, slice, scale, godot: asset.godotSettings, file: fileName,
+          comp, slice, scale, godot: asset.godotSettings, file: fileName, anchors: asset.anchors,
           trackFile: asset.bar?.trackFile, fillFile: asset.bar?.fillFile, hoverFile, pressedFile
         });
       }
 
+      const theme = buildGodotTheme(godotEntries);
+      if (theme) {
+        godotFolder.file('game_ui_theme.tres', theme.text);
+        manifest.godot.theme = { file: `${GODOT_DIR}/game_ui_theme.tres`, resPath: `${GODOT_RES}game_ui_theme.tres`, typeVariations: theme.variations };
+      }
       folder.file("ui_engine_manifest.json", JSON.stringify(manifest, null, 2));
       godotFolder.file('game_ui.tscn', buildGodotScene(godotEntries));
 
@@ -6344,15 +7246,160 @@
       renderScene();
     }
 
+    // ===== Script da seleção (R7, B2) — regras no DOCS 2.8 =====
+    // Gera código Studio que recria os itens: só as props que diferem do preset do tipo, na ordem das
+    // camadas, com grupos no fim. Todo valor passa por JSON.stringify, então nome ou texto malicioso
+    // nunca vira código. Não mexe em state.
+    const SCRIPT_ALWAYS_PROPS = new Set(['id', 'type', 'groupId', 'icon', 'iconSrc', 'name', 'x', 'y', 'w', 'h', 'text']);
+    const JS_RESERVED = new Set(('break case catch class const continue debugger default delete do else export extends ' +
+      'finally for function if import in instanceof let new return super switch this throw try typeof var void while ' +
+      'with yield await enum implements interface package private protected public static null true false undefined ' +
+      'NaN Infinity arguments eval Studio figma console ox oy').split(' '));
+    const SCRIPT_ICON_MAX = 200 * 1024;
+
+    // Preset do tipo sem gastar id (createComponentPreset incrementa nextId).
+    function presetBaseline(type) {
+      const savedId = state.nextId;
+      const base = createComponentPreset(type);
+      state.nextId = savedId;
+      return base;
+    }
+
+    const roundScript = (v) => Math.round(v * 100) / 100;
+    const scriptValue = (v) => (typeof v === 'number' ? String(roundScript(v)) : JSON.stringify(v));
+    const sameScriptValue = (a, b) => (typeof a === 'number' && typeof b === 'number' ? roundScript(a) === roundScript(b) : a === b);
+
+    function scriptVarName(name, used) {
+      const words = foldText(name).replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+      let base = words.map((w, i) => (i === 0 ? w : w[0].toUpperCase() + w.slice(1))).join('');
+      if (!base) base = 'item';
+      else if (/^[0-9]/.test(base)) base = `item${base}`;
+      if (JS_RESERVED.has(base)) base += 'Item';
+      let v = base, n = 2;
+      while (used.has(v)) v = `${base}${n++}`;
+      used.add(v);
+      return v;
+    }
+
+    // Quebra a lista de props em linhas de até ~100 colunas quando não cabe numa só.
+    function formatScriptProps(props, head) {
+      const inline = `{ ${props.join(', ')} }`;
+      if (head.length + inline.length <= 110) return inline;
+      const rows = [];
+      let row = '';
+      props.forEach(p => {
+        if (row && row.length + p.length + 2 > 96) { rows.push(row); row = ''; }
+        row += (row ? ', ' : '') + p;
+      });
+      if (row) rows.push(row);
+      return `{\n  ${rows.join(',\n  ')}\n}`;
+    }
+
+    function selectionToScript(targets, opts = {}) {
+      const relative = opts.relative !== false;
+      const embedIcons = opts.icons !== 'omit';
+      const picked = new Set((targets == null ? state.components : targets).map(c => c.id)); // null = cena inteira
+      const comps = state.components.filter(c => picked.has(c.id)); // ordem das camadas
+      if (comps.length === 0) return '';
+
+      const ox = relative ? Math.round(Math.min(...comps.map(c => c.x))) : 0;
+      const oy = relative ? Math.round(Math.min(...comps.map(c => c.y))) : 0;
+      const coord = (v, axis) => {
+        if (!relative) return scriptValue(v);
+        const d = roundScript(v - (axis === 'x' ? ox : oy));
+        return `${axis === 'x' ? 'ox' : 'oy'}${d < 0 ? ` - ${-d}` : ` + ${d}`}`;
+      };
+
+      const lines = [`// ${t('Gerado pelo Game Dev UI Studio (cena {w}×{h}). {n} item(ns).', { w: state.canvasWidth, h: state.canvasHeight, n: comps.length })}`];
+      if (relative) {
+        lines.push(`// ${t('Mude ox/oy para recriar o conjunto em outro lugar.')}`);
+        lines.push(`const ox = ${ox}, oy = ${oy};`);
+      }
+      lines.push('');
+
+      const used = new Set();
+      const vars = new Map();
+      const baselines = new Map();
+      comps.forEach(c => {
+        if (!baselines.has(c.type)) baselines.set(c.type, presetBaseline(c.type));
+        const base = baselines.get(c.type);
+        const v = scriptVarName(c.name, used);
+        vars.set(c.id, v);
+
+        const props = [`name: ${JSON.stringify(c.name)}`, `x: ${coord(c.x, 'x')}`, `y: ${coord(c.y, 'y')}`, `w: ${scriptValue(c.w)}`, `h: ${scriptValue(c.h)}`];
+        const withText = c.type !== 'Texto' && (c.text !== '' || base.text !== '');
+        if (withText) props.push(`text: ${JSON.stringify(c.text)}`);
+        Object.keys(COMPONENT_DEFAULTS).forEach(key => {
+          if (SCRIPT_ALWAYS_PROPS.has(key)) return;
+          const forced = key === 'ringShowValue' && c.type === 'Anel' && withText;
+          if (forced || !sameScriptValue(c[key], base[key])) props.push(`${key}: ${scriptValue(c[key])}`);
+        });
+
+        const head = c.type === 'Texto'
+          ? `const ${v} = Studio.text(${JSON.stringify(c.text)}, `
+          : `const ${v} = Studio.create(${JSON.stringify(c.type)}, `;
+        lines.push(`${head}${formatScriptProps(props, head)});`);
+
+        if (c.iconSrc) {
+          const kb = Math.ceil(c.iconSrc.length / 1024);
+          if (embedIcons && c.iconSrc.length <= SCRIPT_ICON_MAX) lines.push(`await Studio.setIcon(${v}, ${JSON.stringify(c.iconSrc)});`);
+          else lines.push(`// await Studio.setIcon(${v}, 'data:image/...'); // ${t('imagem de {kb} KB omitida', { kb })}`);
+        }
+      });
+
+      const groupOrder = [];
+      comps.forEach(c => { if (c.groupId && !groupOrder.includes(c.groupId)) groupOrder.push(c.groupId); });
+      if (groupOrder.length) lines.push('');
+      groupOrder.forEach(gid => {
+        const g = state.groups.find(x => x.id === gid);
+        const members = comps.filter(c => c.groupId === gid).map(c => vars.get(c.id));
+        lines.push(`Studio.group([${members.join(', ')}], ${JSON.stringify(g ? g.name : t('Grupo'))});`);
+      });
+      return lines.join('\n') + '\n';
+    }
+
+    // Abre a Bancada com o script da seleção (ou da cena, sem seleção) no editor, sem executar.
+    function openSelectionScript() {
+      const selected = getSelectedComponents();
+      const code = selectionToScript(selected.length ? selected : null);
+      if (!code) {
+        showToast('Nenhum componente para gerar script.');
+        return;
+      }
+      toggleScriptModal(true);
+      scriptCodeInput.value = code;
+      scriptCodeInput.setSelectionRange(0, 0);
+      scriptCodeInput.scrollTop = 0;
+      showToast(selected.length
+        ? t('Script de {n} item(ns) no editor. Revise e execute (Ctrl+Enter).', { n: selected.length })
+        : t('Sem seleção: script da cena inteira no editor.'));
+    }
+
     const Studio = {
       get canvas() {
         return { width: state.canvasWidth, height: state.canvasHeight };
+      },
+
+      // Idioma da interface ('pt' | 'en') e tradução inline para scripts e templates bilíngues.
+      get lang() {
+        return currentLang;
+      },
+      tr(pt, en) {
+        return currentLang === 'en' && en !== undefined ? en : pt;
+      },
+
+      // Área segura da resolução atual ({ top, right, bottom, left } em px) ou null (desktop).
+      get safeArea() {
+        const sa = currentSafeArea();
+        return sa ? { ...sa } : null;
       },
 
       help() {
         const pt = [
           'Studio API (alias: figma). Alvos aceitam id, nome, tipo, componente ou array; sem alvo = seleção atual.',
           '  Studio.canvas                          → { width, height }',
+          '  Studio.safeArea                        → { top, right, bottom, left } do aparelho, ou null',
+          '  Studio.lang / Studio.tr(pt, en)        → idioma da interface e texto no idioma certo',
           '  Studio.get(idOuNome)                   → componente ou null',
           '  Studio.getAll() / Studio.getSelected() → array de componentes',
           '  Studio.find(c => c.w > 100)            → filtra componentes',
@@ -6366,6 +7413,9 @@
           '  Studio.remove(alvos)                   → exclui',
           '  Studio.copy(alvos) / await Studio.paste() → copia e cola (+16 px, grupos novos)',
           '  await Studio.svg(alvo?)                → texto SVG vetorial do item (ou da cena, sem alvo)',
+          '  Studio.toScript(alvos?, { relative, icons: "embed"|"omit" }) → código que recria os itens',
+          '  await Studio.merge(alvos)              → mescla numa imagem só (Ctrl+E)',
+          '  await Studio.importLayout(json)        → soma um layout salvo à cena (escala se a resolução for outra)',
           '  Studio.group(alvos, nome) / Studio.ungroup(alvo)',
           '  Studio.align(alvos, modo)              → left | right | top | bottom | centerX | centerY',
           '  Studio.distribute(alvos, "x"|"y", gap?)→ espaça igualmente (ou com gap fixo)',
@@ -6382,11 +7432,15 @@
           'Anel: ringValue ringThickness ringStart ringColor1 ringColor2 ringTrackColor ringGlow ringShowValue',
           'Ícone: iconFit(contain|cover|stretch|original) iconScale iconOpacity iconOffsetX iconOffsetY',
           'Forma: shapeKind(star|polygon|ellipse|arrow) shapeSides shapeInnerRatio · rotation (graus, qualquer tipo)',
-          'Sombra interna: innerShadowColor innerShadowOpacity innerShadowSize innerHighlight · shadowOffsetX'
+          'Sombra interna: innerShadowColor innerShadowOpacity innerShadowSize innerHighlight · shadowOffsetX',
+          'Textura: noise(0-1, grão) scanlines(0-1) scanlineSpacing(px, 2-32)',
+          'Âncora: anchorH(left|center|right|stretch) anchorV(top|middle|bottom|stretch) · Studio.autoAnchor(alvos)'
         ];
         const en = [
           'Studio API (alias: figma). Targets accept id, name, type, component or array; no target = current selection.',
           '  Studio.canvas                          → { width, height }',
+          '  Studio.safeArea                        → device { top, right, bottom, left }, or null',
+          '  Studio.lang / Studio.tr(pt, en)        → UI language and text in the right language',
           '  Studio.get(idOrName)                   → component or null',
           '  Studio.getAll() / Studio.getSelected() → component array',
           '  Studio.find(c => c.w > 100)            → filter components',
@@ -6400,6 +7454,9 @@
           '  Studio.remove(targets)                 → delete',
           '  Studio.copy(targets) / await Studio.paste() → copy and paste (+16 px, new groups)',
           '  await Studio.svg(target?)              → vector SVG text of an item (or the scene, no target)',
+          '  Studio.toScript(targets?, { relative, icons: "embed"|"omit" }) → code that recreates the items',
+          '  await Studio.merge(targets)            → merge into a single image (Ctrl+E)',
+          '  await Studio.importLayout(json)        → add a saved layout to the scene (scaled if resolution differs)',
           '  Studio.group(targets, name) / Studio.ungroup(target)',
           '  Studio.align(targets, mode)            → left | right | top | bottom | centerX | centerY',
           '  Studio.distribute(targets, "x"|"y", gap?) → even spacing (or fixed gap)',
@@ -6416,7 +7473,9 @@
           'Ring: ringValue ringThickness ringStart ringColor1 ringColor2 ringTrackColor ringGlow ringShowValue',
           'Icon: iconFit(contain|cover|stretch|original) iconScale iconOpacity iconOffsetX iconOffsetY',
           'Shape: shapeKind(star|polygon|ellipse|arrow) shapeSides shapeInnerRatio · rotation (degrees, any type)',
-          'Inner shadow: innerShadowColor innerShadowOpacity innerShadowSize innerHighlight · shadowOffsetX'
+          'Inner shadow: innerShadowColor innerShadowOpacity innerShadowSize innerHighlight · shadowOffsetX',
+          'Texture: noise(0-1, grain) scanlines(0-1) scanlineSpacing(px, 2-32)',
+          'Anchor: anchorH(left|center|right|stretch) anchorV(top|middle|bottom|stretch) · Studio.autoAnchor(targets)'
         ];
         const text = (currentLang === 'en' ? en : pt).join('\n');
         appendScriptLog('log', [text]);
@@ -6676,6 +7735,35 @@
         renderScene();
       },
 
+      // Âncora pela posição na cena (terços; >80% do eixo = esticar), como o botão Auto.
+      autoAnchor(targets) {
+        const comps = resolveTargets(targets);
+        comps.forEach(autoAnchor);
+        refreshAll();
+        return comps.map(c => ({ name: c.name, anchorH: c.anchorH, anchorV: c.anchorV }));
+      },
+
+      // Código Studio que recria os alvos (padrão: seleção; sem seleção, a cena). DOCS 2.8.
+      toScript(targets, opts = {}) {
+        if (targets === undefined) {
+          const selected = resolveTargets();
+          return selectionToScript(selected.length ? selected : null, opts);
+        }
+        return selectionToScript(resolveTargets(targets), opts);
+      },
+
+      // Mescla os alvos (padrão: seleção) numa imagem só, como o Ctrl+E.
+      async merge(targets) {
+        return mergeSelection(targets === undefined ? undefined : resolveTargets(targets));
+      },
+
+      // Soma um layout (objeto do .json salvo) à cena atual, escalando se a resolução for outra.
+      async importLayout(data) {
+        const result = await importLayoutIntoScene(JSON.parse(JSON.stringify(data)));
+        if (!result) throw new Error('Layout inválido / invalid layout.');
+        return result.added;
+      },
+
       undo() { undo(); },
       redo() { redo(); }
     };
@@ -6684,42 +7772,51 @@
     window.figma = Studio;
 
     const SCRIPT_PRESETS = {
-      upgradeStats: `// Tela "Upgrade Stats" (RPG de ação) usando Texto, Anel e ícones SVG.
-// Tudo é criado em ordem: o que vem depois fica por cima.
+      upgradeStats: `// Tela "Upgrade Stats" (RPG de ação) com Texto, Anel e ícones SVG.
+// "Upgrade Stats" screen (action RPG) with Text, Ring and SVG icons.
+// Studio.tr('PT', 'EN'): os textos seguem o idioma da interface / texts follow the UI language.
+// Tudo é criado em ordem: o que vem depois fica por cima / later items stack on top.
 Studio.clear();
+const tr = Studio.tr;
 const { width: W, height: H } = Studio.canvas;
 const bare = { fillOpacity: 0, borderWidth: 0, dropShadow: false, innerShadow: false, radius: 0 };
 const label = (text, x, y, w, h, extra = {}) =>
-  Studio.text(text, { name: 'Texto: ' + text.split('\\n')[0], x: Math.round(x), y: Math.round(y), w, h, fontFamily: 'Rajdhani', ...bare, ...extra });
+  Studio.text(text, { name: tr('Texto: ', 'Text: ') + text.split('\\n')[0], x: Math.round(x), y: Math.round(y), w, h, fontFamily: 'Rajdhani', ...bare, ...extra });
 
-// Fundo
+// Fundo / Background
 Studio.create('Painel', {
-  name: 'Fundo', x: 0, y: 0, w: W, h: H, radius: 0,
+  name: tr('Fundo', 'Background'), x: 0, y: 0, w: W, h: H, radius: 0,
   fillType: 'gradient', gradientDir: 'radial', fillColor1: '#20252d', fillColor2: '#07080a',
   borderWidth: 0, dropShadow: false, innerShadow: false
 });
 
-// Header
+// Cabeçalho / Header
 const header = [
-  label('UPGRADE STATS', W / 2 - 300, 28, 600, 64, { fontSize: 44, fontWeight: 300, letterSpacing: 6 }),
-  label('‹   L1   Summary', 40, 36, 300, 44, { fontSize: 24, fontWeight: 500, textAlign: 'left', textColor: '#a1a1aa' }),
-  label('Cards   R1   ›', W - 340, 36, 300, 44, { fontSize: 24, fontWeight: 500, textAlign: 'right', textColor: '#a1a1aa' }),
+  label(tr('MELHORAR ATRIBUTOS', 'UPGRADE STATS'), W / 2 - 350, 28, 700, 64, { fontSize: 44, fontWeight: 300, letterSpacing: 6 }),
+  label(tr('‹   L1   Resumo', '‹   L1   Summary'), 40, 36, 300, 44, { fontSize: 24, fontWeight: 500, textAlign: 'left', textColor: '#a1a1aa' }),
+  label(tr('Cartas   R1   ›', 'Cards   R1   ›'), W - 340, 36, 300, 44, { fontSize: 24, fontWeight: 500, textAlign: 'right', textColor: '#a1a1aa' }),
   Studio.create('Barra', {
-    name: 'Badge: 3 AVAILABLE', x: W - 250, y: 84, w: 210, h: 30, radius: 3, barValue: 100,
+    name: tr('Selo: 3 DISPONÍVEIS', 'Badge: 3 AVAILABLE'), x: W - 250, y: 84, w: 210, h: 30, radius: 3, barValue: 100,
     gradientDir: 'vertical', fillColor1: '#1d4ed8', fillColor2: '#1e3a8a',
     borderWidth: 1, borderColor: '#60a5fa', borderStyle: 'glow', dropShadow: false, innerShadow: false,
-    text: '3 AVAILABLE', fontFamily: 'Rajdhani', fontSize: 17, fontWeight: 700, letterSpacing: 2
+    text: tr('3 DISPONÍVEIS', '3 AVAILABLE'), fontFamily: 'Rajdhani', fontSize: 17, fontWeight: 700, letterSpacing: 2
   })
 ];
-Studio.group(header, 'Header');
+Studio.group(header, tr('Cabeçalho', 'Header'));
 
-// Cartões de atributo
+// Cartas de atributo / Stat cards
 const cardW = 384, cardH = 600, gap = 48, ringSize = 260;
 const startX = Math.round((W - (cardW * 3 + gap * 2)) / 2), cardY = 140;
 const stats = [
-  { title: 'AGILITY', value: 9, pct: 45, c1: '#f97316', c2: '#fde047', cost: '500', bonus: '25 ATK SPD\\n12 DEF', next: '+3 ATK SPD\\n+3 DEF', perk: 'FROST STRIKE', selected: true },
-  { title: 'LIFE', value: 12, pct: 60, c1: '#10b981', c2: '#86efac', cost: '1000', bonus: '220 HP\\n8.2 HP REGEN', next: '+12 HP\\n+2.1 HP REGEN', perk: '+AUTO POTION' },
-  { title: 'MAGIC', value: 4, pct: 22, c1: '#9333ea', c2: '#f0abfc', cost: '500', bonus: '25 ABL DMG\\n12 DEF', next: '+3 ABL DMG\\n+3 DEF', perk: 'MANA STORM' }
+  { title: tr('AGILIDADE', 'AGILITY'), value: 9, pct: 45, c1: '#f97316', c2: '#fde047', cost: '500',
+    bonus: tr('25 VEL ATQ\\n12 DEF', '25 ATK SPD\\n12 DEF'), next: tr('+3 VEL ATQ\\n+3 DEF', '+3 ATK SPD\\n+3 DEF'),
+    perk: tr('GOLPE GÉLIDO', 'FROST STRIKE'), selected: true },
+  { title: tr('VIDA', 'LIFE'), value: 12, pct: 60, c1: '#10b981', c2: '#86efac', cost: '1000',
+    bonus: tr('220 PV\\n8,2 REGEN PV', '220 HP\\n8.2 HP REGEN'), next: tr('+12 PV\\n+2,1 REGEN PV', '+12 HP\\n+2.1 HP REGEN'),
+    perk: tr('+POÇÃO AUTOMÁTICA', '+AUTO POTION') },
+  { title: tr('MAGIA', 'MAGIC'), value: 4, pct: 22, c1: '#9333ea', c2: '#f0abfc', cost: '500',
+    bonus: tr('25 DANO HAB\\n12 DEF', '25 ABL DMG\\n12 DEF'), next: tr('+3 DANO HAB\\n+3 DEF', '+3 ABL DMG\\n+3 DEF'),
+    perk: tr('TEMPESTADE DE MANA', 'MANA STORM') }
 ];
 const rings = [];
 
@@ -6729,29 +7826,29 @@ stats.forEach((s, i) => {
   const cy = ringY + ringSize / 2;
   const items = [
     Studio.create('Painel', {
-      name: 'Card ' + s.title, x, y: cardY, w: cardW, h: cardH, radius: 3,
+      name: tr('Carta ', 'Card ') + s.title, x, y: cardY, w: cardW, h: cardH, radius: 3,
       fillType: 'gradient', gradientDir: 'diagonal',
       fillColor1: s.selected ? '#3a3d45' : '#16181c', fillColor2: s.selected ? '#111216' : '#0b0c0e', fillOpacity: 0.96,
       borderStyle: 'solid', borderWidth: s.selected ? 2 : 1, borderColor: s.selected ? '#a18a5b' : '#24272d',
       shadowBlur: 30, shadowOffsetY: 12, innerShadow: false
     }),
-    // O arco termina no topo (-90°) e cresce para a esquerda, como na referência.
+    // O arco termina no topo (-90°) e cresce para a esquerda / the arc ends at the top and grows left.
     Studio.create('Anel', {
-      name: 'Anel ' + s.title, x: Math.round(ringX), y: ringY, w: ringSize, h: ringSize, text: '',
+      name: tr('Anel ', 'Ring ') + s.title, x: Math.round(ringX), y: ringY, w: ringSize, h: ringSize, text: '',
       ringValue: s.pct, ringThickness: 7, ringStart: -90 - s.pct * 3.6,
       ringColor1: s.c1, ringColor2: s.c2, ringTrackColor: '#0a0b0e', ringGlow: true
     }),
     label(String(s.value), x, cy - 70, cardW, 96, { fontSize: 88, fontWeight: 300 }),
     label(s.title, x, cy + 26, cardW, 32, { fontSize: 22, fontWeight: 500, letterSpacing: 4, textColor: '#d4d4d8' }),
     label('◉ ' + s.cost, x, cardY + 314, cardW, 36, { fontSize: 24, fontWeight: 600, textColor: '#e5c158' }),
-    label('BONUSES\\n' + s.bonus, x + 20, cardY + 380, cardW / 2 - 36, 96, { fontSize: 17, fontWeight: 600, textAlign: 'right', textVAlign: 'top', textColor: '#4ade80', lineHeight: 1.5 }),
-    label('NEXT\\n' + s.next, x + cardW / 2 + 16, cardY + 380, cardW / 2 - 36, 96, { fontSize: 17, fontWeight: 600, textAlign: 'left', textVAlign: 'top', textColor: '#4ade80', lineHeight: 1.5 }),
+    label(tr('BÔNUS\\n', 'BONUSES\\n') + s.bonus, x + 20, cardY + 380, cardW / 2 - 36, 96, { fontSize: 17, fontWeight: 600, textAlign: 'right', textVAlign: 'top', textColor: '#4ade80', lineHeight: 1.5 }),
+    label(tr('PRÓXIMO\\n', 'NEXT\\n') + s.next, x + cardW / 2 + 16, cardY + 380, cardW / 2 - 36, 96, { fontSize: 17, fontWeight: 600, textAlign: 'left', textVAlign: 'top', textColor: '#4ade80', lineHeight: 1.5 }),
     label(s.perk, x, cardY + 492, cardW, 32, { fontSize: 18, fontWeight: 700, letterSpacing: 1.5, textColor: '#eab308' })
   ];
   rings.push({ cx: ringX + ringSize / 2, cy, r: ringSize / 2 - 5, items, title: s.title });
 });
 
-// Gemas: SVG desenhado 1:1 no tamanho do componente com Studio.setIcon
+// Gemas: SVG desenhado 1:1 no tamanho do componente / Gems: SVG drawn 1:1 at the component size
 const diamond = (s, fill, stroke, core) =>
   '<polygon points="' + s / 2 + ',2 ' + (s - 2) + ',' + s / 2 + ' ' + s / 2 + ',' + (s - 2) + ' 2,' + s / 2 + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="2"/>' +
   (core ? '<polygon points="' + s / 2 + ',' + s * 0.25 + ' ' + s * 0.75 + ',' + s / 2 + ' ' + s / 2 + ',' + s * 0.75 + ' ' + s * 0.25 + ',' + s / 2 + '" fill="' + core + '"/>' : '');
@@ -6759,7 +7856,7 @@ async function gem(ringIndex, angleDeg, size, fill, stroke, core) {
   const ring = rings[ringIndex];
   const a = angleDeg * Math.PI / 180;
   const g = Studio.create('Slot', {
-    name: 'Gema ' + ring.title, ...bare,
+    name: tr('Gema ', 'Gem ') + ring.title, ...bare,
     x: Math.round(ring.cx + ring.r * Math.cos(a) - size / 2), y: Math.round(ring.cy + ring.r * Math.sin(a) - size / 2), w: size, h: size
   });
   await Studio.setIcon(g, diamond(size, fill, stroke, core));
@@ -6771,43 +7868,50 @@ await gem(0, 45, 44, '#141417', '#27272a', null);
 await gem(1, -90, 44, '#111815', '#27352e', '#84cc16');
 await gem(2, 135, 52, '#3b0764', '#e879f9', '#a855f7');
 await gem(2, -20, 46, '#172554', '#60a5fa', '#3b82f6');
-rings.forEach(r => Studio.group(r.items, 'Card ' + r.title));
+rings.forEach(r => Studio.group(r.items, tr('Carta ', 'Card ') + r.title));
 
-// Ouro total e rodapé de comandos
-label('◉ 1,468', W / 2 - 200, cardY + cardH + 36, 400, 72, { fontSize: 56, fontWeight: 300, textColor: '#e5c158' });
+// Ouro total e rodapé de comandos / Total gold and button prompts
+label(tr('◉ 1.468', '◉ 1,468'), W / 2 - 200, cardY + cardH + 36, 400, 72, { fontSize: 56, fontWeight: 300, textColor: '#e5c158' });
 const footer = [
-  Studio.create('Painel', { name: 'Rodapé', x: 0, y: H - 72, w: W, h: 72, radius: 0, fillType: 'solid', fillColor1: '#050608', fillOpacity: 0.95, borderWidth: 1, borderColor: '#18181b', borderStyle: 'solid', dropShadow: false, innerShadow: false })
+  Studio.create('Painel', { name: tr('Rodapé', 'Footer'), x: 0, y: H - 72, w: W, h: 72, radius: 0, fillType: 'solid', fillColor1: '#050608', fillOpacity: 0.95, borderWidth: 1, borderColor: '#18181b', borderStyle: 'solid', dropShadow: false, innerShadow: false })
 ];
 const prompts = [
-  { key: '●', keyColor: '#ef4444', text: 'Undo purchase', x: 40 },
-  { key: 'L2', keyColor: '#a1a1aa', text: 'Inspect Gems', x: 700 },
-  { key: '✕', keyColor: '#60a5fa', text: 'Buy Agility point', x: 1040 },
-  { key: '▼', keyColor: '#facc15', text: 'Save and Return', x: W - 300 }
+  { key: '●', keyColor: '#ef4444', text: tr('Desfazer compra', 'Undo purchase'), x: 40 },
+  { key: 'L2', keyColor: '#a1a1aa', text: tr('Inspecionar gemas', 'Inspect Gems'), x: 700 },
+  { key: '✕', keyColor: '#60a5fa', text: tr('Comprar ponto de Agilidade', 'Buy Agility point'), x: 1040 },
+  { key: '▼', keyColor: '#facc15', text: tr('Salvar e voltar', 'Save and Return'), x: W - 300 }
 ];
 prompts.forEach(p => {
   footer.push(Studio.create('Slot', {
-    name: 'Tecla ' + p.key, x: p.x, y: H - 52, w: 34, h: 32, radius: 8, fillType: 'solid', fillColor1: '#18181b',
+    name: tr('Tecla ', 'Key ') + p.key, x: p.x, y: H - 52, w: 34, h: 32, radius: 8, fillType: 'solid', fillColor1: '#18181b',
     borderWidth: 1.5, borderColor: '#52525b', borderStyle: 'solid', dropShadow: false, innerShadow: false,
     text: p.key, fontFamily: 'Rajdhani', fontSize: 15, fontWeight: 700, textColor: p.keyColor, textPadding: 0
   }));
-  footer.push(label(p.text, p.x + 44, H - 56, 260, 40, { fontSize: 22, fontWeight: 500, textAlign: 'left', textColor: '#e4e4e7' }));
+  footer.push(label(p.text, p.x + 44, H - 56, 300, 40, { fontSize: 22, fontWeight: 500, textAlign: 'left', textColor: '#e4e4e7' }));
 });
-Studio.group(footer, 'Rodapé');
+Studio.group(footer, tr('Rodapé', 'Footer'));
 Studio.select([]);
-console.log('Upgrade Stats pronto: ' + Studio.getAll().length + ' camadas.');`,
+console.log(tr('Upgrade Stats pronto: ', 'Upgrade Stats ready: ') + Studio.getAll().length + tr(' camadas.', ' layers.'));`,
 
-      inventoryGrid: `// Grid de inventário 4x4 dentro de um painel, centralizado no canvas
+      inventoryGrid: `// Grid de inventário 4x4 num painel com título, centralizado no canvas.
+// 4x4 inventory grid in a titled panel, centered on the canvas.
+const tr = Studio.tr;
 const { width, height } = Studio.canvas;
 const size = 96, gap = 12, cols = 4, rows = 4, pad = 40, header = 40;
 const gridW = cols * size + (cols - 1) * gap;
 const gridH = rows * size + (rows - 1) * gap;
 
 const panel = Studio.create('Painel', {
-  name: 'Painel Inventário',
+  name: tr('Painel Inventário', 'Inventory Panel'),
   w: gridW + pad * 2,
   h: gridH + pad * 2 + header,
   x: Math.round((width - gridW) / 2 - pad),
   y: Math.round((height - gridH - header) / 2 - pad)
+});
+
+const title = Studio.text(tr('INVENTÁRIO', 'INVENTORY'), {
+  name: tr('Título Inventário', 'Inventory Title'), x: panel.x + pad, y: panel.y + 22, w: gridW, h: 40,
+  fontFamily: 'Rajdhani', fontSize: 28, fontWeight: 700, letterSpacing: 3, textAlign: 'left', textColor: '#e4e4e7'
 });
 
 const slots = Studio.createGrid({
@@ -6815,58 +7919,65 @@ const slots = Studio.createGrid({
   x: panel.x + pad, y: panel.y + pad + header, group: false
 });
 
-Studio.group([panel, ...slots], 'Inventário 4x4');
-console.log(\`Criados \${slots.length} slots.\`);`,
+Studio.group([panel, title, ...slots], tr('Inventário 4x4', 'Inventory 4x4'));
+console.log(tr('Criados ', 'Created ') + slots.length + ' slots.');`,
 
-      rpgHud: `// HUD de RPG: retrato, barras de status, XP e hotbar
+      rpgHud: `// HUD de RPG: retrato, barras de status com rótulo, XP e hotbar.
+// RPG HUD: portrait, labeled status bars, XP and hotbar.
+const tr = Studio.tr;
 const { width, height } = Studio.canvas;
 const m = 32;
 
 const portrait = Studio.create('Slot', {
-  name: 'HUD Retrato', x: m, y: m, w: 128, h: 128, radius: 64,
+  name: tr('HUD Retrato', 'HUD Portrait'), x: m, y: m, w: 128, h: 128, radius: 64,
   borderStyle: 'glow', borderColor: '#f59e0b', borderWidth: 4
 });
 
 const bars = [
-  { name: 'HUD Vida',    c1: '#dc2626', c2: '#7f1d1d', border: '#ef4444' },
-  { name: 'HUD Mana',    c1: '#2563eb', c2: '#1e3a8a', border: '#60a5fa' },
-  { name: 'HUD Stamina', c1: '#16a34a', c2: '#14532d', border: '#4ade80' }
+  { name: tr('HUD Vida', 'HUD Health'), text: tr('VIDA 850/1000', 'HEALTH 850/1000'), value: 85, c1: '#dc2626', c2: '#7f1d1d', border: '#ef4444' },
+  { name: tr('HUD Mana', 'HUD Mana'), text: tr('MANA 420/600', 'MANA 420/600'), value: 70, c1: '#2563eb', c2: '#1e3a8a', border: '#60a5fa' },
+  { name: tr('HUD Vigor', 'HUD Stamina'), text: tr('VIGOR 90%', 'STAMINA 90%'), value: 90, c1: '#16a34a', c2: '#14532d', border: '#4ade80' }
 ].map((b, i) => Studio.create('Barra', {
-  name: b.name, x: m + 148, y: m + 12 + i * 40, w: 360, h: 28,
-  fillColor1: b.c1, fillColor2: b.c2, borderColor: b.border
+  name: b.name, x: m + 148, y: m + 12 + i * 40, w: 360, h: 28, barValue: b.value,
+  fillColor1: b.c1, fillColor2: b.c2, borderColor: b.border,
+  text: b.text, fontFamily: 'Rajdhani', fontSize: 16, fontWeight: 700, letterSpacing: 1
 }));
 
 Studio.create('Barra', {
-  name: 'HUD XP', x: m, y: height - m - 14, w: width - m * 2, h: 14, radius: 7,
+  name: tr('HUD XP', 'HUD XP'), x: m, y: height - m - 14, w: width - m * 2, h: 14, radius: 7,
   fillColor1: '#a855f7', fillColor2: '#581c87', borderColor: '#c084fc', borderWidth: 1
 });
 
-Studio.group([portrait, ...bars], 'HUD Status');
-Studio.createGrid({ rows: 1, cols: 8, size: 72, gap: 8, name: 'Hotbar', y: height - m - 14 - 16 - 72, group: 'HUD Hotbar' });
-console.log('HUD RPG criado.');`,
+Studio.group([portrait, ...bars], tr('HUD Status', 'HUD Status'));
+Studio.createGrid({ rows: 1, cols: 8, size: 72, gap: 8, name: tr('Atalho', 'Hotbar'), y: height - m - 14 - 16 - 72, group: tr('HUD Atalhos', 'HUD Hotbar') });
+console.log(tr('HUD RPG criado.', 'RPG HUD created.'));`,
 
-      hotbar: `// Hotbar de 1 a 8 centralizada na base da tela
+      hotbar: `// Hotbar de 1 a 8 centralizada na base da tela / 1-8 hotbar centered at the bottom
+const tr = Studio.tr;
 const { height } = Studio.canvas;
 const slots = Studio.createGrid({
   rows: 1, cols: 8, size: 80, gap: 10, type: 'Slot',
-  name: 'Hotbar', y: height - 80 - 40, group: 'Hotbar 1-8'
+  name: tr('Atalho', 'Hotbar'), y: height - 80 - 40, group: tr('Barra de atalhos 1-8', 'Hotbar 1-8')
 });
-console.log(\`\${slots.length} slots criados.\`);`,
+console.log(slots.length + tr(' slots criados.', ' slots created.'));`,
 
-      recolorButtons: `// Pinta todos os botões com um tema dourado
+      recolorButtons: `// Pinta todos os botões com um tema dourado / Paints every button with a gold theme
+const tr = Studio.tr;
 const botoes = Studio.updateAll('Botão', {
   fillColor1: '#8a6a1f', fillColor2: '#3d2c07',
   borderColor: '#fbbf24', borderStyle: 'bevel', borderWidth: 3
 });
-console.log(\`\${botoes.length} botão(ões) atualizado(s).\`);`,
+console.log(botoes.length + tr(' botão(ões) atualizado(s).', ' button(s) updated.'));`,
 
-      alignH: `// Distribui a seleção atual na horizontal e alinha pelo centro vertical
-// (selecione os itens com Shift+clique ANTES de abrir a bancada)
+      alignH: `// Distribui a seleção na horizontal e alinha pelo centro vertical.
+// Distributes the selection horizontally and aligns the vertical centers.
+// (selecione os itens com Shift+clique ANTES de abrir a bancada / select with Shift+click first)
+const tr = Studio.tr;
 const sel = Studio.getSelected();
-if (sel.length < 2) throw new Error('Selecione 2 ou mais itens (Shift+clique).');
+if (sel.length < 2) throw new Error(tr('Selecione 2 ou mais itens (Shift+clique).', 'Select 2 or more items (Shift+click).'));
 Studio.distribute(sel, 'x');
 Studio.align(sel, 'centerY');
-console.log(\`\${sel.length} itens distribuídos.\`);`
+console.log(sel.length + tr(' itens distribuídos.', ' items distributed.'));`
     };
 
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
@@ -6915,19 +8026,51 @@ console.log(\`\${sel.length} itens distribuídos.\`);`
         error: (...args) => appendScriptLog('error', args)
       };
 
+      // Template pronto rodado sem edição: guarda o "antes" para refazer no outro idioma (setLanguage).
+      const presetKey = Object.keys(SCRIPT_PRESETS).find(k => SCRIPT_PRESETS[k] === code) || null;
+      const before = presetKey ? snapshotDocument() : null;
+
       const t0 = performance.now();
       try {
         const fn = new AsyncFunction('Studio', 'figma', 'console', code);
         const result = await fn(Studio, Studio, scriptConsole);
+        lastPresetRun = presetKey ? { key: presetKey, before, signature: null } : null;
         if (result !== undefined) appendScriptLog('result', ['←', result]);
         appendScriptLog('meta', [t('✓ executado em {ms} ms', { ms: Math.round(performance.now() - t0) })]);
       } catch (err) {
+        lastPresetRun = null;
         appendScriptLog('error', [`✗ ${err && err.name ? err.name : 'Erro'}: ${err && err.message ? err.message : err}`]);
       } finally {
         scriptRunning = false;
         btnRunScript.disabled = false;
         refreshAll();
+        if (lastPresetRun && !lastPresetRun.signature) lastPresetRun.signature = sceneSignature();
       }
+    }
+
+    // ---- Templates bilíngues (R7) ----
+    // Os templates usam Studio.tr. Se o último script rodado foi um template sem edição e a cena não
+    // mudou desde então, trocar o idioma volta ao "antes" e roda o template de novo no outro idioma
+    // (mesma ideia da cena de boas-vindas). Qualquer mudança na cena desliga isso.
+    let lastPresetRun = null;
+
+    async function rerunPresetInNewLanguage() {
+      const run = lastPresetRun;
+      if (!run || !run.signature || sceneSignature() !== run.signature) return false;
+      restoreSnapshot(run.before);
+      toastMuted = true;
+      renderSuspended = true;
+      try {
+        await new AsyncFunction('Studio', 'figma', 'console', SCRIPT_PRESETS[run.key])(Studio, Studio, { log() {}, info() {}, warn() {}, error() {} });
+      } catch (err) {
+        console.warn('Template não pôde ser refeito:', err);
+      } finally {
+        toastMuted = false;
+        renderSuspended = false;
+      }
+      refreshAll();
+      run.signature = sceneSignature();
+      return true;
     }
 
     btnRunScript.addEventListener('click', runScript);
@@ -7115,6 +8258,45 @@ console.log(\`\${sel.length} itens distribuídos.\`);`
     });
 
     btnOpenScriptModal.addEventListener('click', () => toggleScriptModal(true));
+
+    // ---- Menu de export da barra superior (R7) ----
+    // Fica fora do header (overflow-x cortaria), então é posicionado em coordenadas de tela ao abrir.
+    const btnExportMenu = document.getElementById('btnExportMenu');
+    const exportMenu = document.getElementById('exportMenu');
+
+    function setExportMenuOpen(open) {
+      exportMenu.classList.toggle('hidden', !open);
+      btnExportMenu.setAttribute('aria-expanded', String(open));
+      if (!open) return;
+      const r = btnExportMenu.getBoundingClientRect();
+      const menuW = exportMenu.offsetWidth;
+      exportMenu.style.top = `${Math.round(r.bottom + 6)}px`;
+      exportMenu.style.left = `${Math.round(Math.max(8, Math.min(r.right - menuW, window.innerWidth - menuW - 8)))}px`;
+    }
+
+    btnExportMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setExportMenuOpen(exportMenu.classList.contains('hidden'));
+    });
+    // Os selects de formato/resolução ficam abertos; as três ações fecham o menu.
+    [btnExportSelected, btnExportScene, btnExportBatch].forEach(btn => btn.addEventListener('click', () => setExportMenuOpen(false)));
+    document.getElementById('btnExportScript').addEventListener('click', () => {
+      setExportMenuOpen(false);
+      openSelectionScript();
+    });
+    document.getElementById('btnScriptFromSelection').addEventListener('click', openSelectionScript);
+    document.addEventListener('pointerdown', (e) => {
+      if (!exportMenu.classList.contains('hidden') && !exportMenu.contains(e.target) && !btnExportMenu.contains(e.target)) setExportMenuOpen(false);
+    });
+    // Captura: o Esc fecha só o menu e não chega ao atalho global (que limparia a seleção).
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !exportMenu.classList.contains('hidden')) {
+        e.stopPropagation();
+        setExportMenuOpen(false);
+        btnExportMenu.focus();
+      }
+    }, true);
+    window.addEventListener('resize', () => setExportMenuOpen(false));
     btnCloseScriptModal.addEventListener('click', () => toggleScriptModal(false));
 
     window.addEventListener('load', async () => {

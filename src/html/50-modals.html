@@ -1,0 +1,94 @@
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-zinc-900 border border-figma-accent text-white px-3.5 py-2 rounded shadow-2xl text-xs flex items-center gap-2 transform translate-y-16 opacity-0 transition-all duration-200 z-50">
+    <svg class="w-4 h-4 text-figma-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <span id="toastMsg">Ação concluída com sucesso!</span>
+  </div>
+
+  <!-- Script Workbench Modal -->
+  <div id="scriptWorkbenchModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-zinc-950 border border-figma-border rounded-xl shadow-2xl w-full max-w-4xl flex flex-col overflow-hidden max-h-[90vh]">
+      <div class="px-4 py-3 border-b border-figma-border flex items-center justify-between bg-zinc-900/80">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-mono font-bold text-sm border border-amber-500/40">
+            ⚡
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-zinc-100 flex items-center gap-2">
+              <span data-i18n>Bancada de Scripts & Console</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-amber-400 border border-zinc-700 font-mono font-normal">Figma / Engine API</span>
+            </h3>
+            <p class="text-[11px] text-zinc-400" data-i18n>Automatize, crie grids de inventário, altere temas e manipule elementos via código JavaScript.</p>
+          </div>
+        </div>
+        <button id="btnCloseScriptModal" class="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="px-4 py-2 border-b border-zinc-800 bg-zinc-900/40 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="text-zinc-500 text-[11px] font-medium mr-1 whitespace-nowrap" data-i18n>Templates:</span>
+        <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="welcome" data-i18n>👋 Boas-vindas</button>
+        <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="upgradeStats" data-i18n>⭐ Upgrade Stats</button>
+        <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="inventoryGrid" data-i18n>🎒 Grid Inventário 4x4</button>
+        <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="rpgHud" data-i18n>⚔️ HUD RPG Completo</button>
+        <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="hotbar" data-i18n>🔥 Hotbar 1 a 8</button>
+        <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="recolorButtons" data-i18n>🎨 Pintar Botões Dourado</button>
+        <button class="script-preset-btn px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition whitespace-nowrap" data-preset="alignH" data-i18n>📐 Distribuir Horizontal</button>
+        <button id="btnScriptFromSelection" class="ml-auto px-2.5 py-1 rounded border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 transition whitespace-nowrap" title="Gerar o código Studio que recria a seleção (sem seleção: a cena inteira)" data-i18n-title><span data-i18n>📋 Da seleção</span></button>
+      </div>
+
+      <!-- Templates do usuário: ficam no navegador e podem ser exportados/importados para compartilhar -->
+      <div class="px-4 py-2 border-b border-zinc-800 bg-zinc-900/20 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="text-zinc-500 text-[11px] font-medium mr-1 whitespace-nowrap" data-i18n>Meus templates:</span>
+        <div id="customTemplateList" class="flex flex-wrap items-center gap-1.5"></div>
+        <div id="templateSaveForm" class="hidden items-center gap-1.5">
+          <input type="text" id="templateNameInput" maxlength="40" placeholder="Nome do template" data-i18n-ph class="bg-zinc-950 border border-amber-500/50 rounded px-2 py-1 text-xs text-zinc-100 focus:outline-none w-44">
+          <button id="btnConfirmSaveTemplate" class="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold" data-i18n>Salvar</button>
+          <button id="btnCancelSaveTemplate" class="px-2 py-1 rounded text-zinc-400 hover:text-white" data-i18n>Cancelar</button>
+        </div>
+        <div class="ml-auto flex items-center gap-1.5">
+          <button id="btnSaveTemplate" class="px-2.5 py-1 rounded border border-amber-500/40 text-amber-300 hover:bg-amber-500/10 whitespace-nowrap" title="Guarda o código do editor como um novo template" data-i18n-title><span data-i18n>💾 Salvar como template</span></button>
+          <button id="btnExportTemplates" class="px-2 py-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 whitespace-nowrap" title="Baixar meus templates (.json) para compartilhar" data-i18n-title><span data-i18n>Exportar</span></button>
+          <label class="px-2 py-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 whitespace-nowrap cursor-pointer" title="Importar templates de um .json" data-i18n-title>
+            <span data-i18n>Importar</span>
+            <input type="file" id="inputImportTemplates" accept=".json,application/json" class="hidden">
+          </label>
+        </div>
+      </div>
+
+      <div class="p-4 flex-1 flex flex-col gap-3 overflow-hidden">
+        <div class="flex-1 flex flex-col relative">
+          <div class="flex items-center justify-between text-[11px] text-zinc-400 mb-1 font-mono">
+            <span data-i18n>Editor (JavaScript / Studio API):</span>
+            <span class="text-zinc-500" data-i18n>Ctrl+Enter para executar</span>
+          </div>
+          <textarea id="scriptCodeInput" spellcheck="false" class="w-full flex-1 min-h-[200px] bg-zinc-950 font-mono text-xs text-amber-200 p-3 rounded-lg border border-zinc-800 focus:outline-none focus:border-amber-500/50 resize-none selection:bg-amber-500/30 leading-relaxed"></textarea>
+        </div>
+
+        <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 max-h-36 overflow-y-auto font-mono text-xs flex flex-col gap-1">
+          <div class="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold border-b border-zinc-800/80 pb-1 flex items-center justify-between">
+            <span>Console Output</span>
+            <button id="btnClearScriptOutput" class="text-zinc-500 hover:text-zinc-300 normal-case font-normal text-[10px]" data-i18n>Limpar</button>
+          </div>
+          <div id="scriptOutputLog" class="text-zinc-400 space-y-0.5">
+            <div class="text-zinc-600" data-i18n>// Use "Studio" ou "figma" diretamente aqui ou no Console (F12). Digite Studio.help() para ver a lista de comandos.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-4 py-3 border-t border-figma-border bg-zinc-900/60 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-xs text-zinc-400">
+          <span><span data-i18n>Atalho:</span> <kbd class="bg-zinc-800 px-1 py-0.5 rounded border border-zinc-700 text-zinc-300 font-mono text-[10px]">Ctrl+J</kbd></span>
+          <span class="text-[10px] text-zinc-500" title="Scripts rodam com acesso total à página e ao seu projeto." data-i18n-title><span data-i18n>⚠ Execute apenas scripts de fontes confiáveis</span></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnClearScriptCode" class="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition" data-i18n>Limpar Código</button>
+          <button id="btnRunScript" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-zinc-950 flex items-center gap-1.5 transition shadow-lg shadow-amber-500/20">
+            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span data-i18n>Executar Script</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+

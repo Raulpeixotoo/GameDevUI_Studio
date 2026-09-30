@@ -32,7 +32,7 @@ try {
   const { files, tscn, manifest } = out;
 
   // ---- manifest v5 ----
-  check('manifestVersion = 5', manifest.manifestVersion === 5);
+  check('manifestVersion = 6', manifest.manifestVersion === 6);
   check('manifest.godot.projectSettings 1920x1080', manifest.godot.projectSettings['display/window/size/viewport_width'] === 1920);
   check('todo asset tem godotSettings e engines', manifest.assets.every(a => a.godotSettings && a.engines));
   check('campos v4 preservados', manifest.assets.every(a => a.unitySettings && a.unrealSettings && a.nineSlice));

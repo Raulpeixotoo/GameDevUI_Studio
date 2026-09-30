@@ -19,7 +19,7 @@ Não precisa instalar nada, não tem login e nada sai do seu computador: o proje
 
 **Online:** abra o link do deploy.
 
-**Local:** baixe o repositório e abra `devUI-Studio.html` no Chrome ou no Edge. Precisa de internet na primeira abertura (Tailwind, JSZip e fontes vêm de CDN).
+**Local:** baixe o repositório e abra `devUI-Studio.html` no Chrome ou no Edge. Precisa de internet na primeira abertura (JSZip e fontes vêm de CDN; o CSS do Tailwind já vem embutido no HTML).
 
 ## Segurança
 
@@ -27,12 +27,13 @@ Não precisa instalar nada, não tem login e nada sai do seu computador: o proje
 - **Script Workbench executa código JavaScript de verdade.** Só rode scripts que você entende. Ninguém de confiança vai pedir para você colar um script "para liberar recurso".
 - Encontrou uma falha? Abra uma issue sem detalhes da exploração e peça contato privado.
 
-## Testes
+## Desenvolvimento e testes
 
-Precisa de Node 22+ e Chrome ou Edge instalados:
+O código-fonte fica em `src/` (mapa em [src/README.md](src/README.md)). O `devUI-Studio.html` é gerado a partir dele, então edite `src/`, não o HTML. Precisa de Node 22+ e Chrome ou Edge instalados:
 
 ```
-node tests/run-all.mjs
+node tools/build.mjs      # monta o devUI-Studio.html a partir de src/ (e o CSS do Tailwind)
+node tests/run-all.mjs    # testes headless
 ```
 
 ## Licença

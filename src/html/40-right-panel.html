@@ -1,0 +1,464 @@
+    <!-- RIGHT SIDEBAR: Properties Inspector -->
+    <aside id="rightPanel" class="w-80 bg-figma-panel border-l border-figma-border flex flex-col shrink-0 z-20 overflow-y-auto">
+      <div class="p-3 border-b border-figma-border flex items-center justify-between gap-2">
+        <input type="text" id="propName" value="Componente" class="bg-transparent font-semibold text-sm text-zinc-100 focus:outline-none focus:bg-zinc-800 px-1 py-0.5 rounded w-44">
+        <span id="propTypeBadge" class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-figma-accent border border-zinc-700">Slot</span>
+      </div>
+
+      <div id="inspectorEmpty" class="p-6 text-center text-xs text-zinc-500 hidden">
+        <span data-i18n>Selecione um elemento na cena ou nas camadas para editar.</span>
+      </div>
+
+      <div id="inspMultiHint" class="mx-3 mt-3 px-2 py-1.5 rounded bg-figma-accent/10 border border-figma-accent/30 text-[11px] text-sky-300 hidden"></div>
+
+      <div id="inspectorContent" class="p-3 space-y-4 text-xs">
+
+        <!-- Busca de propriedades + recolher/expandir tudo (fica presa no topo ao rolar) -->
+        <div id="inspSearchBar" class="sticky -top-3 z-10 -mx-3 -mt-3 px-3 pt-3 pb-2 bg-figma-panel border-b border-figma-border/60 flex items-center gap-1.5">
+          <div class="flex-1 flex items-center gap-1.5 bg-zinc-900 border border-figma-border rounded px-2 py-1 focus-within:border-figma-accent">
+            <svg class="w-3.5 h-3.5 text-zinc-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"/></svg>
+            <input type="text" id="inspSearch" placeholder="Buscar propriedade ( / )" data-i18n-ph class="flex-1 min-w-0 bg-transparent text-xs text-zinc-100 focus:outline-none">
+            <button id="inspSearchClear" class="text-zinc-500 hover:text-zinc-200 hidden" title="Limpar busca (Esc)" data-i18n-title>✕</button>
+          </div>
+          <button id="inspToggleAll" class="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800" title="Recolher / expandir todas as seções" data-i18n-title>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h16"/></svg>
+          </button>
+        </div>
+        <div id="inspSearchEmpty" class="hidden text-center text-zinc-500 py-4" data-i18n>Nenhuma propriedade encontrada.</div>
+
+        <!-- Alinhar e distribuir: 1 item = em relação ao canvas; 2+ = em relação à seleção -->
+        <div id="alignBar" class="flex items-center justify-between bg-zinc-900 border border-figma-border rounded p-1">
+          <button class="align-op" data-op="left" title="Alinhar à esquerda" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 3v18"/><rect x="7" y="6" width="12" height="4"/><rect x="7" y="14" width="8" height="4"/></svg></button>
+          <button class="align-op" data-op="centerX" title="Centralizar na horizontal" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3v18"/><rect x="5" y="6" width="14" height="4"/><rect x="8" y="14" width="8" height="4"/></svg></button>
+          <button class="align-op" data-op="right" title="Alinhar à direita" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 3v18"/><rect x="5" y="6" width="12" height="4"/><rect x="9" y="14" width="8" height="4"/></svg></button>
+          <span class="w-[1px] h-4 bg-figma-border"></span>
+          <button class="align-op" data-op="top" title="Alinhar ao topo" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 4h18"/><rect x="6" y="7" width="4" height="12"/><rect x="14" y="7" width="4" height="8"/></svg></button>
+          <button class="align-op" data-op="centerY" title="Centralizar na vertical" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18"/><rect x="6" y="5" width="4" height="14"/><rect x="14" y="8" width="4" height="8"/></svg></button>
+          <button class="align-op" data-op="bottom" title="Alinhar à base" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 20h18"/><rect x="6" y="5" width="4" height="12"/><rect x="14" y="9" width="4" height="8"/></svg></button>
+          <span class="w-[1px] h-4 bg-figma-border"></span>
+          <button class="align-op" data-op="distX" title="Distribuir na horizontal" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v16M20 4v16"/><rect x="10" y="7" width="4" height="10"/></svg></button>
+          <button class="align-op" data-op="distY" title="Distribuir na vertical" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16M4 20h16"/><rect x="7" y="10" width="10" height="4"/></svg></button>
+        </div>
+
+        <!-- Posição, dimensão e opacidade -->
+        <div class="space-y-2">
+          <span class="insp-title" data-i18n>Posição e Dimensão</span>
+          <div class="grid grid-cols-2 gap-2 font-mono">
+            <div class="insp-field"><span class="insp-label">X</span><input type="number" id="propX" class="insp-input"></div>
+            <div class="insp-field"><span class="insp-label">Y</span><input type="number" id="propY" class="insp-input"></div>
+            <div class="insp-field"><span class="insp-label">W</span><input type="number" id="propW" min="8" class="insp-input"></div>
+            <div class="insp-field"><span class="insp-label">H</span><input type="number" id="propH" min="8" class="insp-input"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 font-mono">
+            <div class="insp-field" title="Rotação (graus)" data-i18n-title><span class="insp-label">↻</span><input type="number" id="propRotation" step="1" class="insp-input"><span class="insp-label">°</span></div>
+            <button id="btnResetRotation" class="text-[11px] text-zinc-400 hover:text-zinc-200 bg-zinc-800/80 rounded border border-zinc-700" title="Zerar rotação" data-i18n-title>0°</button>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-zinc-400 pt-1">
+            <button id="btnSquareSnap" class="hover:text-zinc-200 flex items-center gap-1 bg-zinc-800/80 px-2 py-0.5 rounded border border-zinc-700">
+              <svg class="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/></svg>
+              <span data-i18n>Travar Quadrado (1:1)</span>
+            </button>
+            <span id="aspectRatioLabel" class="font-mono text-zinc-500">1:1</span>
+          </div>
+          <!-- Âncoras (R8): como o item se comporta em outras proporções de tela, na prévia e na engine -->
+          <div class="flex items-center gap-1.5 text-[11px]" title="Âncora: como o item se comporta quando a tela muda de proporção (vai para Unity, Unreal e Godot)" data-i18n-title>
+            <span class="insp-label" data-i18n>Âncora</span>
+            <select id="propAnchorH" class="insp-select flex-1 min-w-0">
+              <option value="left" data-i18n>Esquerda</option>
+              <option value="center" data-i18n>Centro</option>
+              <option value="right" data-i18n>Direita</option>
+              <option value="stretch" data-i18n>Esticar H</option>
+            </select>
+            <select id="propAnchorV" class="insp-select flex-1 min-w-0">
+              <option value="top" data-i18n>Topo</option>
+              <option value="middle" data-i18n>Meio</option>
+              <option value="bottom" data-i18n>Base</option>
+              <option value="stretch" data-i18n>Esticar V</option>
+            </select>
+            <button id="btnAutoAnchor" class="px-2 py-0.5 rounded border border-zinc-700 bg-zinc-800/80 text-zinc-300 hover:text-white" title="Escolher a âncora pela posição do item na cena (vale para toda a seleção)" data-i18n-title><span data-i18n>Auto</span></button>
+          </div>
+          <div class="space-y-1">
+            <div class="insp-row"><span data-i18n>Opacidade da Camada</span><span id="opacityVal" class="insp-val">100%</span></div>
+            <input type="range" id="propOpacity" min="0" max="100" value="100" class="insp-range">
+          </div>
+        </div>
+
+        <div class="h-[1px] bg-figma-border"></div>
+
+        <!-- Texto (qualquer componente pode ter um rótulo) -->
+        <div id="sectionText" class="bg-zinc-900/80 border border-figma-border rounded-md p-2.5 space-y-2">
+          <div class="flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 6h14M12 6v13M9 19h6"/></svg>
+            <span class="font-semibold text-[11px] text-zinc-200" data-i18n>Texto / Rótulo</span>
+          </div>
+          <textarea id="propText" rows="2" placeholder="Digite o texto (Enter quebra linha)" data-i18n-ph class="w-full bg-zinc-950 border border-figma-border rounded px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-figma-accent resize-y"></textarea>
+          <div class="grid grid-cols-[1fr_auto] gap-1.5">
+            <select id="propFontFamily" class="insp-select w-full">
+              <option value="Inter">Inter</option>
+              <option value="Rajdhani">Rajdhani</option>
+              <option value="Oswald">Oswald</option>
+              <option value="Teko">Teko</option>
+              <option value="Bebas Neue">Bebas Neue</option>
+              <option value="Chakra Petch">Chakra Petch</option>
+              <option value="Orbitron">Orbitron</option>
+              <option value="Exo 2">Exo 2</option>
+              <option value="Russo One">Russo One</option>
+              <option value="Roboto Condensed">Roboto Condensed</option>
+              <option value="Cinzel">Cinzel</option>
+              <option value="Press Start 2P">Press Start 2P</option>
+              <option value="JetBrains Mono">JetBrains Mono</option>
+            </select>
+            <select id="propFontWeight" class="insp-select">
+              <option value="300">Light</option>
+              <option value="400">Regular</option>
+              <option value="500">Medium</option>
+              <option value="600">SemiBold</option>
+              <option value="700">Bold</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 font-mono">
+            <div class="insp-field" title="Tamanho da fonte" data-i18n-title><span class="insp-label">Aa</span><input type="number" id="propFontSize" min="6" max="400" class="insp-input"></div>
+            <div class="insp-field"><input type="color" id="propTextColor"><input type="text" id="propTextHex" class="insp-hex"></div>
+          </div>
+          <!-- Contraste do texto com o que está atrás dele (WCAG 2.x: 4,5:1; texto grande 3:1) -->
+          <div id="textContrastBadge" class="hidden text-[10px] font-mono px-2 py-1 rounded border"></div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex bg-zinc-950 border border-figma-border rounded overflow-hidden" id="textAlignGroup">
+              <button class="align-btn" data-align="left" title="Esquerda" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h13"/></svg></button>
+              <button class="align-btn" data-align="center" title="Centro" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M7 12h10M5 18h14"/></svg></button>
+              <button class="align-btn" data-align="right" title="Direita" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M10 12h10M7 18h13"/></svg></button>
+            </div>
+            <div class="flex bg-zinc-950 border border-figma-border rounded overflow-hidden" id="textVAlignGroup">
+              <button class="align-btn" data-valign="top" title="Topo" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M5 4h14M12 8v12M8 12l4-4 4 4"/></svg></button>
+              <button class="align-btn" data-valign="middle" title="Meio" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M5 12h14M12 3v5M12 16v5"/></svg></button>
+              <button class="align-btn" data-valign="bottom" title="Base" data-i18n-title><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M5 20h14M12 4v12M8 12l4 4 4-4"/></svg></button>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 font-mono">
+            <div class="insp-field" title="Espaçamento entre letras (px)" data-i18n-title><span class="insp-label">↔</span><input type="number" id="propLetterSpacing" step="0.5" class="insp-input"></div>
+            <div class="insp-field" title="Altura da linha" data-i18n-title><span class="insp-label">↕</span><input type="number" id="propLineHeight" step="0.05" min="0.5" max="3" class="insp-input"></div>
+          </div>
+          <div class="insp-row">
+            <span data-i18n>Efeito</span>
+            <select id="propTextEffect" class="insp-select">
+              <option value="none" data-i18n>Nenhum</option>
+              <option value="shadow" data-i18n>Sombra</option>
+              <option value="glow" data-i18n>Brilho (Glow)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 font-mono">
+            <div class="insp-field" title="Contorno do texto (px)" data-i18n-title><span class="insp-label" data-i18n>Contorno</span><input type="number" id="propTextStrokeWidth" min="0" max="20" class="insp-input"></div>
+            <div class="insp-field"><input type="color" id="propTextStrokeColor"><span class="text-[10px] text-zinc-500" data-i18n>cor</span></div>
+          </div>
+          <label class="insp-check"><span data-i18n>MAIÚSCULAS</span><input type="checkbox" id="propTextUppercase" class="rounded"></label>
+          <label class="insp-check pt-1 border-t border-zinc-800"><span data-i18n>Incluir texto no PNG exportado</span><input type="checkbox" id="propExportWithText" class="rounded"></label>
+        </div>
+
+        <!-- Forma (só Forma) -->
+        <div id="sectionShape" class="bg-zinc-900/80 border border-figma-border rounded-md p-2.5 space-y-2 hidden">
+          <div class="insp-row">
+            <span class="font-semibold text-[11px] text-yellow-300" data-i18n>Forma</span>
+            <select id="propShapePreset" class="insp-select">
+              <option value="star" data-i18n>Estrela</option>
+              <option value="triangle" data-i18n>Triângulo</option>
+              <option value="diamond" data-i18n>Losango</option>
+              <option value="hexagon" data-i18n>Hexágono</option>
+              <option value="polygon" data-i18n>Polígono</option>
+              <option value="ellipse" data-i18n>Elipse / círculo</option>
+              <option value="arrow" data-i18n>Seta</option>
+            </select>
+          </div>
+          <div id="shapeSidesRow" class="space-y-1">
+            <div class="insp-row"><span data-i18n>Pontas / lados</span><span id="shapeSidesVal" class="insp-val">5</span></div>
+            <input type="range" id="propShapeSides" min="3" max="12" class="insp-range">
+          </div>
+          <div id="shapeInnerRow" class="space-y-1">
+            <div class="insp-row"><span data-i18n>Profundidade da estrela</span><span id="shapeInnerVal" class="insp-val">45%</span></div>
+            <input type="range" id="propShapeInnerRatio" min="10" max="95" class="insp-range">
+          </div>
+        </div>
+
+        <!-- Barra de progresso (só Barra) -->
+        <div id="sectionBar" class="bg-zinc-900/80 border border-figma-border rounded-md p-2.5 space-y-2 hidden">
+          <span class="font-semibold text-[11px] text-emerald-300" data-i18n>Barra de Progresso</span>
+          <div class="flex items-center gap-2">
+            <input type="range" id="propBarValue" min="0" max="100" class="insp-range flex-1">
+            <input type="number" id="propBarValueNum" min="0" max="100" class="insp-num">
+            <span class="text-zinc-500">%</span>
+          </div>
+          <div class="insp-row">
+            <span data-i18n>Direção</span>
+            <select id="propBarDirection" class="insp-select">
+              <option value="ltr" data-i18n>Esquerda → Direita</option>
+              <option value="rtl" data-i18n>Direita → Esquerda</option>
+              <option value="btt" data-i18n>Baixo → Cima</option>
+              <option value="ttb" data-i18n>Cima → Baixo</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 font-mono">
+            <div class="insp-field" title="Segmentos (0 = contínua)" data-i18n-title><span class="insp-label" data-i18n>Seg.</span><input type="number" id="propBarSegments" min="0" max="50" class="insp-input"></div>
+            <div class="insp-field" title="Cor do trilho vazio" data-i18n-title><input type="color" id="propTrackColor"><span class="text-[10px] text-zinc-500" data-i18n>trilho</span></div>
+          </div>
+        </div>
+
+        <!-- Anel / medidor circular (só Anel) -->
+        <div id="sectionRing" class="bg-zinc-900/80 border border-figma-border rounded-md p-2.5 space-y-2 hidden">
+          <span class="font-semibold text-[11px] text-orange-300" data-i18n>Medidor Circular</span>
+          <div class="flex items-center gap-2">
+            <input type="range" id="propRingValue" min="0" max="100" class="insp-range flex-1">
+            <input type="number" id="propRingValueNum" min="0" max="100" class="insp-num">
+            <span class="text-zinc-500">%</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5 font-mono">
+            <div class="insp-field" title="Espessura do anel" data-i18n-title><span class="insp-label" data-i18n>Esp.</span><input type="number" id="propRingThickness" min="1" max="200" class="insp-input"></div>
+            <div class="insp-field" title="Ângulo inicial (graus, -90 = topo)" data-i18n-title><span class="insp-label">∠</span><input type="number" id="propRingStart" min="-360" max="360" step="15" class="insp-input"></div>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 text-[10px] text-zinc-500">
+            <label class="flex flex-col items-center gap-1"><input type="color" id="propRingColor1"><span data-i18n>início</span></label>
+            <label class="flex flex-col items-center gap-1"><input type="color" id="propRingColor2"><span data-i18n>fim</span></label>
+            <label class="flex flex-col items-center gap-1"><input type="color" id="propRingTrackColor"><span data-i18n>trilho</span></label>
+          </div>
+          <label class="insp-check"><span data-i18n>Brilho no arco</span><input type="checkbox" id="propRingGlow" class="rounded"></label>
+          <label class="insp-check" title="O número acompanha o valor do medidor. Desligue para um anel sem texto ou para usar o campo Texto." data-i18n-title><span data-i18n>Mostrar valor no centro</span><input type="checkbox" id="propRingShowValue" class="rounded"></label>
+        </div>
+
+        <!-- Imagem / ícone embutido -->
+        <div class="bg-zinc-900/80 border border-figma-border rounded-md p-2.5 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-figma-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span class="font-semibold text-[11px] text-zinc-200" data-i18n>Imagem / Ícone Embutido</span>
+            </div>
+            <button id="btnRemoveIcon" class="text-[10px] text-zinc-500 hover:text-red-400 hidden" data-i18n>Remover</button>
+          </div>
+
+          <input type="file" id="inputSlotIcon" accept="image/*" class="hidden">
+
+          <div id="slotIconDropZone" class="cursor-pointer flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-zinc-700 hover:border-figma-accent rounded-md py-3 px-2 bg-zinc-800/60 hover:bg-zinc-800 transition text-[11px] text-zinc-300 text-center select-none">
+            <div class="flex items-center gap-1.5 pointer-events-none">
+              <svg class="w-4 h-4 text-figma-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              <span id="iconUploadBtnText" class="font-semibold">Escolher Imagem (PNG/JPG)</span>
+            </div>
+            <span class="text-[10px] text-zinc-400 pointer-events-none" data-i18n>Clique aqui ou arraste a imagem sobre o item</span>
+          </div>
+
+          <div id="iconSettingsPanel" class="space-y-2 hidden">
+            <div class="insp-row">
+              <span data-i18n>Ajuste</span>
+              <select id="propIconFit" class="insp-select">
+                <option value="contain" data-i18n>Conter (proporção)</option>
+                <option value="cover" data-i18n>Cobrir (corta)</option>
+                <option value="stretch" data-i18n>Esticar (preenche tudo)</option>
+                <option value="original" data-i18n>Original 1:1 (px reais)</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Escala no Componente</span><span id="iconScaleText" class="insp-val">70%</span></div>
+              <input type="range" id="propIconScale" min="10" max="200" value="70" class="insp-range">
+            </div>
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Opacidade da Imagem</span><span id="iconOpacityText" class="insp-val">80%</span></div>
+              <input type="range" id="propIconOpacity" min="5" max="100" value="80" class="insp-range">
+            </div>
+            <div class="grid grid-cols-2 gap-1.5 font-mono">
+              <div class="insp-field" title="Deslocamento horizontal" data-i18n-title><span class="insp-label">↔</span><input type="number" id="propIconOffsetX" class="insp-input"></div>
+              <div class="insp-field" title="Deslocamento vertical" data-i18n-title><span class="insp-label">↕</span><input type="number" id="propIconOffsetY" class="insp-input"></div>
+            </div>
+            <div class="insp-row">
+              <span data-i18n>Filtro / Efeito</span>
+              <select id="propIconFilter" class="insp-select">
+                <option value="none" data-i18n>Original Colorido</option>
+                <option value="silhouette" data-i18n>Silhueta Preta</option>
+                <option value="grayscale" data-i18n>Escala de Cinza</option>
+                <option value="glow" data-i18n>Iluminado (High Contrast)</option>
+              </select>
+            </div>
+            <label class="insp-check pt-1 border-t border-zinc-800"><span data-i18n>Incluir imagem no PNG individual</span><input type="checkbox" id="propExportWithIcon" class="rounded"></label>
+          </div>
+        </div>
+
+        <div class="h-[1px] bg-figma-border"></div>
+
+        <!-- Cantos -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="insp-title" data-i18n>Cantos</span>
+            <div class="flex items-center gap-2">
+              <select id="propCornerStyle" class="insp-select" title="Estilo do canto" data-i18n-title>
+                <option value="round" data-i18n>Arredondado</option>
+                <option value="chamfer" data-i18n>Chanfrado (corte)</option>
+              </select>
+              <button id="btnToggleIndependentCorners" class="text-[11px] text-figma-accent hover:underline">Cantos Livres</button>
+            </div>
+          </div>
+          <div id="uniformRadiusContainer" class="flex items-center gap-2">
+            <input type="range" id="propRadius" min="0" max="96" class="insp-range flex-1">
+            <input type="number" id="propRadiusNum" min="0" max="500" class="insp-num">
+          </div>
+          <div id="independentRadiusContainer" class="grid grid-cols-4 gap-1.5 font-mono hidden">
+            <div class="bg-zinc-900 border border-figma-border rounded p-1 text-center"><span class="text-[9px] text-zinc-500 block">TL</span><input type="number" id="propRadiusTL" min="0" class="w-full bg-transparent text-center focus:outline-none text-xs"></div>
+            <div class="bg-zinc-900 border border-figma-border rounded p-1 text-center"><span class="text-[9px] text-zinc-500 block">TR</span><input type="number" id="propRadiusTR" min="0" class="w-full bg-transparent text-center focus:outline-none text-xs"></div>
+            <div class="bg-zinc-900 border border-figma-border rounded p-1 text-center"><span class="text-[9px] text-zinc-500 block">BR</span><input type="number" id="propRadiusBR" min="0" class="w-full bg-transparent text-center focus:outline-none text-xs"></div>
+            <div class="bg-zinc-900 border border-figma-border rounded p-1 text-center"><span class="text-[9px] text-zinc-500 block">BL</span><input type="number" id="propRadiusBL" min="0" class="w-full bg-transparent text-center focus:outline-none text-xs"></div>
+          </div>
+        </div>
+
+        <div class="h-[1px] bg-figma-border"></div>
+
+        <!-- Preenchimento -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="insp-title" id="fillTitle" data-i18n>Preenchimento</span>
+            <select id="propFillType" class="insp-select">
+              <option value="gradient" data-i18n>Gradiente</option>
+              <option value="solid" data-i18n>Sólido</option>
+            </select>
+          </div>
+          <div id="gradientDirRow" class="insp-row">
+            <span data-i18n>Direção do gradiente</span>
+            <select id="propGradientDir" class="insp-select">
+              <option value="vertical" data-i18n>Vertical ↓</option>
+              <option value="horizontal" data-i18n>Horizontal →</option>
+              <option value="diagonal" data-i18n>Diagonal ↘</option>
+              <option value="radial" data-i18n>Radial ◉</option>
+            </select>
+          </div>
+          <div class="space-y-1 bg-zinc-900 border border-figma-border rounded p-2">
+            <div class="insp-row"><span data-i18n>Opacidade do Fundo</span><span id="fillOpacityVal" class="insp-val">100%</span></div>
+            <input type="range" id="propFillOpacity" min="0" max="100" value="100" class="insp-range">
+            <div class="flex items-center justify-between text-[9px] text-zinc-500 pt-0.5">
+              <button type="button" id="btnFillOp0" class="hover:text-figma-accent" data-i18n>0% (Vazado)</button>
+              <button type="button" id="btnFillOp50" class="hover:text-figma-accent">50%</button>
+              <button type="button" id="btnFillOp100" class="hover:text-figma-accent" data-i18n>100% (Sólido)</button>
+            </div>
+          </div>
+          <div class="flex items-center justify-between bg-zinc-900 border border-figma-border rounded p-1.5">
+            <div class="flex items-center gap-2"><input type="color" id="propFillColor1"><input type="text" id="propFillHex1" class="insp-hex"></div>
+            <span class="text-[10px] text-zinc-500" data-i18n>Cor 1</span>
+          </div>
+          <div id="gradientColorContainer" class="flex items-center justify-between bg-zinc-900 border border-figma-border rounded p-1.5">
+            <div class="flex items-center gap-2"><input type="color" id="propFillColor2"><input type="text" id="propFillHex2" class="insp-hex"></div>
+            <span class="text-[10px] text-zinc-500" data-i18n>Cor 2</span>
+          </div>
+        </div>
+
+        <div class="h-[1px] bg-figma-border"></div>
+
+        <!-- Borda -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="insp-title" data-i18n>Borda / Moldura</span>
+            <select id="propBorderStyle" class="insp-select">
+              <option value="solid" data-i18n>Plana (Solid)</option>
+              <option value="bevel" data-i18n>Bevel 3D (relevo)</option>
+              <option value="inset" data-i18n>Inset (afundado)</option>
+              <option value="glow" data-i18n>Glow Neon / Raridade</option>
+              <option value="dashed" data-i18n>Tracejada</option>
+              <option value="double" data-i18n>Dupla</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="range" id="propBorderWidth" min="0" max="24" class="insp-range flex-1">
+            <input type="number" id="propBorderWidthNum" min="0" max="64" class="insp-num">
+          </div>
+          <div class="flex items-center justify-between bg-zinc-900 border border-figma-border rounded p-1.5">
+            <div class="flex items-center gap-2"><input type="color" id="propBorderColor"><input type="text" id="propBorderHex" class="insp-hex"></div>
+            <span class="text-[10px] text-zinc-500" data-i18n>Cor Borda</span>
+          </div>
+          <div id="bevelRow" class="space-y-1">
+            <div class="insp-row"><span data-i18n>Intensidade do relevo</span><span id="bevelStrengthVal" class="insp-val">35%</span></div>
+            <input type="range" id="propBevelStrength" min="0" max="100" class="insp-range">
+          </div>
+        </div>
+
+        <div class="h-[1px] bg-figma-border"></div>
+
+        <!-- Efeitos (sombras): preset + dois efeitos explicados -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="insp-title" data-i18n>Efeitos</span>
+            <select id="propEffectPreset" class="insp-select" title="Aplicar um estilo pronto de sombra" data-i18n-title>
+              <option value="custom" data-i18n>Personalizado</option>
+              <option value="none" data-i18n>Nenhuma sombra</option>
+              <option value="soft" data-i18n>Suave</option>
+              <option value="deep" data-i18n>Profunda</option>
+              <option value="floating" data-i18n>Flutuante</option>
+              <option value="socket" data-i18n>Encaixe de slot</option>
+            </select>
+          </div>
+
+          <label class="insp-check"><span data-i18n>Sombra projetada</span><input type="checkbox" id="propDropShadow" class="rounded"></label>
+          <p class="text-[10px] text-zinc-500 leading-snug" data-i18n>Sombra caindo para fora do item: dá sensação de que ele flutua.</p>
+          <div id="shadowDetails" class="space-y-2 pl-2 border-l border-zinc-800">
+            <div class="flex items-center gap-2"><input type="color" id="propShadowColor"><input type="text" id="propShadowHex" class="insp-hex"></div>
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Opacidade</span><span id="shadowOpacityVal" class="insp-val">60%</span></div>
+              <input type="range" id="propShadowOpacity" min="0" max="100" class="insp-range">
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 font-mono">
+              <div class="insp-field" title="Desfoque (blur)" data-i18n-title><span class="insp-label">Blur</span><input type="number" id="propShadowBlur" min="0" max="120" class="insp-input"></div>
+              <div class="insp-field" title="Deslocamento horizontal" data-i18n-title><span class="insp-label">X</span><input type="number" id="propShadowOffsetX" min="-60" max="60" class="insp-input"></div>
+              <div class="insp-field" title="Deslocamento vertical" data-i18n-title><span class="insp-label">Y</span><input type="number" id="propShadowOffsetY" min="-60" max="60" class="insp-input"></div>
+            </div>
+          </div>
+
+          <label class="insp-check pt-1"><span data-i18n>Sombra interna (encaixe)</span><input type="checkbox" id="propInnerShadow" class="rounded"></label>
+          <p class="text-[10px] text-zinc-500 leading-snug" data-i18n>Escurece a borda de cima por dentro: parece afundado, como um slot.</p>
+          <div id="innerShadowDetails" class="space-y-2 pl-2 border-l border-zinc-800">
+            <div class="flex items-center gap-2"><input type="color" id="propInnerShadowColor"><input type="text" id="propInnerShadowHex" class="insp-hex"></div>
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Intensidade</span><span id="innerShadowOpacityVal" class="insp-val">55%</span></div>
+              <input type="range" id="propInnerShadowOpacity" min="0" max="100" class="insp-range">
+            </div>
+            <div class="insp-field font-mono" title="Profundidade (px)" data-i18n-title><span class="insp-label" data-i18n>Profundidade (px)</span><input type="number" id="propInnerShadowSize" min="1" max="200" class="insp-input"></div>
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Brilho na base</span><span id="innerHighlightVal" class="insp-val">12%</span></div>
+              <input type="range" id="propInnerHighlight" min="0" max="60" class="insp-range">
+            </div>
+          </div>
+
+          <!-- Textura (R7): ruído e scanlines por cima do preenchimento -->
+          <span class="insp-check pt-1 cursor-default" data-i18n>Textura (grão e scanlines)</span>
+          <p class="text-[10px] text-zinc-500 leading-snug" data-i18n>Grão de filme e linhas de monitor antigo por cima do preenchimento. Sai igual no PNG e no SVG.</p>
+          <div class="space-y-2 pl-2 border-l border-zinc-800">
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Ruído</span><span id="noiseVal" class="insp-val">0%</span></div>
+              <input type="range" id="propNoise" min="0" max="100" class="insp-range">
+            </div>
+            <div class="space-y-1">
+              <div class="insp-row"><span data-i18n>Scanlines</span><span id="scanlinesVal" class="insp-val">0%</span></div>
+              <input type="range" id="propScanlines" min="0" max="100" class="insp-range">
+            </div>
+            <div class="insp-field font-mono" title="Distância entre as linhas (px)" data-i18n-title><span class="insp-label" data-i18n>Espaçamento (px)</span><input type="number" id="propScanlineSpacing" min="2" max="32" class="insp-input"></div>
+          </div>
+        </div>
+
+        <div class="h-[1px] bg-figma-border"></div>
+
+        <!-- 9-Slice -->
+        <div class="bg-zinc-900/90 border border-figma-border rounded-md p-2.5 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z"/></svg>
+              <span class="font-semibold text-[11px] text-zinc-200" data-i18n>Guia 9-Slice (Unity / Unreal)</span>
+            </div>
+            <label class="flex items-center gap-1 text-[10px] text-zinc-400 cursor-pointer">
+              <input type="checkbox" id="propShowGuides" checked class="rounded">
+              <span data-i18n>Mostrar</span>
+            </label>
+          </div>
+          <div class="grid grid-cols-4 gap-1 text-center font-mono text-[10px]">
+            <div class="bg-zinc-800 rounded p-1"><span class="text-zinc-500 block">L</span><span id="sliceL">14</span></div>
+            <div class="bg-zinc-800 rounded p-1"><span class="text-zinc-500 block">T</span><span id="sliceT">14</span></div>
+            <div class="bg-zinc-800 rounded p-1"><span class="text-zinc-500 block">R</span><span id="sliceR">14</span></div>
+            <div class="bg-zinc-800 rounded p-1"><span class="text-zinc-500 block">B</span><span id="sliceB">14</span></div>
+          </div>
+          <button id="btnCopyJSON" class="w-full py-1 text-[11px] rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center justify-center gap-1 transition">
+            <svg class="w-3 h-3 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            <span id="copyJSONLabel">Copiar Metadados JSON</span>
+          </button>
+          <label class="insp-check" title="O ZIP ganha _hover.png (mais claro) e _pressed.png (mais escuro), já ligados na Unity, Unreal e Godot" data-i18n-title><span data-i18n>Gerar estados hover/pressed no ZIP</span><input type="checkbox" id="propExportStates" class="rounded"></label>
+        </div>
+
+      </div>
+    </aside>

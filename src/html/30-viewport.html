@@ -1,0 +1,101 @@
+    <!-- CENTER VIEWPORT -->
+    <main id="viewportContainer" class="flex-1 overflow-hidden relative viewport-grid flex items-center justify-center cursor-default">
+      <!-- shrink-0: sem ele o flexbox encolhia o mundo (conteúdo todo absoluto) e o canvas ficava achatado -->
+      <div id="canvasWorld" class="relative shrink-0 shadow-2xl origin-center" style="width: 1920px; height: 1080px; transform: translate(0px, 0px) scale(0.65);">
+
+        <canvas id="mainCanvas" width="1920" height="1080" class="absolute inset-0 z-10 block rounded-sm checkerboard shadow-2xl"></canvas>
+
+        <!-- Grid visual: padrão CSS (não custa render e não entra no PNG) -->
+        <div id="gridOverlay" class="absolute inset-0 z-[12] pointer-events-none hidden"></div>
+
+        <!-- Área segura (mobile): faixas do notch e das barras do sistema. Só no editor, não entra no export -->
+        <div id="safeAreaOverlay" class="absolute inset-0 z-[13] pointer-events-none hidden">
+          <div class="safe-band" data-side="top"></div>
+          <div class="safe-band" data-side="bottom"></div>
+          <div class="safe-band" data-side="left"></div>
+          <div class="safe-band" data-side="right"></div>
+          <div id="safeAreaRect" class="absolute"></div>
+        </div>
+
+        <!-- Guias de régua (posição em px da cena) -->
+        <div id="guidesLayer" class="absolute inset-0 z-[24] pointer-events-none"></div>
+
+        <!-- Smart guides: linhas magenta enquanto arrasta -->
+        <svg id="snapLinesLayer" class="absolute inset-0 z-[26] pointer-events-none overflow-visible" width="1920" height="1080" viewBox="0 0 1920 1080"></svg>
+
+        <!-- Seleção por retângulo: arrastar a partir de uma área vazia -->
+        <div id="marqueeBox" class="absolute z-[27] pointer-events-none hidden" style="border: calc(1px * var(--inv-zoom, 1)) solid #38bdf8; background: rgba(56, 189, 248, 0.10);"></div>
+
+        <div id="gizmoBox" class="absolute z-20 pointer-events-none border-2 border-figma-accent hidden" style="left:0px; top:0px; width:0px; height:0px; transform-origin: 50% 50%;">
+          <div class="handle pointer-events-auto absolute -top-2 -left-2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-nwse-resize shadow" data-handle="tl"></div>
+          <div class="handle pointer-events-auto absolute -top-2 -right-2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-nesw-resize shadow" data-handle="tr"></div>
+          <div class="handle pointer-events-auto absolute -bottom-2 -left-2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-nesw-resize shadow" data-handle="bl"></div>
+          <div class="handle pointer-events-auto absolute -bottom-2 -right-2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-nwse-resize shadow" data-handle="br"></div>
+
+          <div class="handle pointer-events-auto absolute -top-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-ns-resize shadow" data-handle="t"></div>
+          <div class="handle pointer-events-auto absolute -bottom-2 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-ns-resize shadow" data-handle="b"></div>
+          <div class="handle pointer-events-auto absolute top-1/2 -left-2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-ew-resize shadow" data-handle="l"></div>
+          <div class="handle pointer-events-auto absolute top-1/2 -right-2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-figma-accent rounded-sm cursor-ew-resize shadow" data-handle="r"></div>
+
+          <!-- Alça de rotação: haste + círculo acima do centro -->
+          <div class="absolute -top-9 left-1/2 w-[2px] h-7 -translate-x-1/2 bg-figma-accent pointer-events-none"></div>
+          <div class="handle pointer-events-auto absolute -top-12 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-figma-accent rounded-full cursor-grab shadow" data-handle="rot" title="Girar (Shift = passos de 15°)" data-i18n-title></div>
+
+          <div id="gizmoBadge" class="absolute -bottom-7 left-1/2 -translate-x-1/2 bg-figma-accent text-white font-mono text-[11px] font-semibold px-2 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+            0 × 0
+          </div>
+        </div>
+
+        <div id="nineSliceGuides" class="absolute z-15 pointer-events-none hidden border border-dashed border-amber-400/80" style="left:0; top:0; width:0; height:0; transform-origin: 50% 50%;">
+          <div id="guideLineL" class="absolute top-0 bottom-0 border-r-2 border-dashed border-amber-400"></div>
+          <div id="guideLineR" class="absolute top-0 bottom-0 border-l-2 border-dashed border-amber-400"></div>
+          <div id="guideLineT" class="absolute left-0 right-0 border-b-2 border-dashed border-amber-400"></div>
+          <div id="guideLineB" class="absolute left-0 right-0 border-t-2 border-dashed border-amber-400"></div>
+        </div>
+
+      </div>
+
+      <!-- Réguas: arrastar delas cria uma guia; arrastar uma guia de volta para a régua a remove -->
+      <!-- Canvas absoluto não estica com top+bottom (usa a altura intrínseca): tamanho explícito via calc -->
+      <canvas id="rulerTop" class="absolute top-0 left-5 block h-5 w-[calc(100%-1.25rem)] z-30 cursor-row-resize"></canvas>
+      <canvas id="rulerLeft" class="absolute top-5 left-0 block w-5 h-[calc(100%-1.25rem)] z-30 cursor-col-resize"></canvas>
+      <button id="rulerCorner" class="absolute top-0 left-0 w-5 h-5 z-30 bg-[#16161a] border-r border-b border-figma-border text-[9px] text-zinc-500 hover:text-red-400" title="Remover todas as guias" data-i18n-title>✕</button>
+      <div id="guideDragLabel" class="absolute z-40 hidden bg-fuchsia-600 text-white font-mono text-[10px] px-1.5 py-0.5 rounded pointer-events-none"></div>
+
+      <div class="absolute bottom-3 left-8 bg-zinc-900/90 border border-figma-border px-2.5 py-1 rounded text-[11px] font-mono text-zinc-300 shadow flex items-center gap-2 z-30">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+        <span id="resBadgeText">1920 × 1080 px</span>
+        <span class="h-3 w-[1px] bg-figma-border"></span>
+        <span class="text-zinc-500" data-i18n>Fundo</span>
+        <select id="sceneBgMode" class="bg-transparent text-zinc-200 focus:outline-none cursor-pointer text-[11px]">
+          <option value="transparent" data-i18n>Transparente</option>
+          <option value="color" data-i18n>Cor sólida</option>
+        </select>
+        <input type="color" id="sceneBgColor" value="#101014" class="hidden" title="Cor de fundo da cena" data-i18n-title>
+        <span class="h-3 w-[1px] bg-figma-border"></span>
+        <!-- Acessibilidade (R7): simula daltonismo só na tela do editor; não muda nada no export -->
+        <span class="text-zinc-500" data-i18n>Visão</span>
+        <select id="visionSimSelect" class="bg-transparent text-zinc-200 focus:outline-none cursor-pointer text-[11px]" title="Simular como pessoas com daltonismo veem a cena (só na tela)" data-i18n-title>
+          <option value="" data-i18n>Normal</option>
+          <option value="protanopia" data-i18n>Protanopia (vermelho)</option>
+          <option value="deuteranopia" data-i18n>Deuteranopia (verde)</option>
+          <option value="tritanopia" data-i18n>Tritanopia (azul)</option>
+          <option value="achromatopsia" data-i18n>Tons de cinza</option>
+        </select>
+        <span class="h-3 w-[1px] bg-figma-border"></span>
+        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white" title="Alonga e acentua os textos como uma tradução faria e marca em vermelho o que estourar (só na tela)" data-i18n-title>
+          <input type="checkbox" id="chkPseudoLoc" class="rounded border-zinc-700 bg-zinc-900 w-3 h-3">
+          <span data-i18n>Teste de tradução</span>
+          <span id="pseudoLocCount" class="hidden text-rose-400"></span>
+        </label>
+      </div>
+      <!-- Matrizes de Machado, Oliveira e Fernandes (2009), severidade 1, aplicadas em RGB linear -->
+      <svg width="0" height="0" class="absolute pointer-events-none" aria-hidden="true">
+        <filter id="cb-protanopia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.152286 1.052583 -0.204868 0 0  0.114503 0.786281 0.099216 0 0  -0.003882 -0.048116 1.051998 0 0  0 0 0 1 0"/></filter>
+        <filter id="cb-deuteranopia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.367322 0.860646 -0.227968 0 0  0.280085 0.672501 0.047413 0 0  -0.011820 0.042940 0.968881 0 0  0 0 0 1 0"/></filter>
+        <filter id="cb-tritanopia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="1.255528 -0.076749 -0.178779 0 0  -0.078411 0.930809 0.147602 0 0  0.004733 0.691367 0.303900 0 0  0 0 0 1 0"/></filter>
+        <filter id="cb-achromatopsia" color-interpolation-filters="linearRGB"><feColorMatrix type="matrix" values="0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0"/></filter>
+      </svg>
+    </main>
+
+    <div class="relative w-0 shrink-0 z-[35]"><div id="resizeRightPanel" class="panel-resizer" data-panel="right" role="separator" aria-orientation="vertical" tabindex="0" title="Arraste para ajustar a largura (duplo clique volta ao padrão)" data-i18n-title></div></div>

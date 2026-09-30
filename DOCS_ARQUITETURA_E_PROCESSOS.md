@@ -3,7 +3,7 @@
 Documentação oficial do sistema: requisitos de produto (SRS/PRD), design técnico (TDD), API de scripts, pipeline de exportação e o playbook de processos dos agentes.
 
 - **Arquivo da aplicação:** `devUI-Studio.html` (arquivo único)
-- **Versão documentada:** Rodada 6, preparação do deploy público (formato de projeto 1.2, manifest v5)
+- **Versão documentada:** Rodada 8: âncoras, acessibilidade, teste de tradução, tema da Godot, textura, templates bilíngues (R7: barra superior, mobile, mesclar/importar, script da seleção, Tailwind compilado). Formato de projeto 1.2, manifest v6
 - **Testes:** `node tests/run-all.mjs` (Node 22+ e Chrome ou Edge)
 - **Licença:** AGPL-3.0 (arquivo `LICENSE`)
 - **Responsáveis:** @tech-lead e @product-spec, com seções de @script-dev, @backend-manifest e @engine-pipeline
@@ -33,12 +33,20 @@ O Game Dev UI Studio é um editor de interfaces de jogo que roda no navegador, g
 |---|---|
 | Um único arquivo HTML | Baixar e abrir, sem instalação |
 | Canvas 2D nativo, sem framework | Regra 2 do `claude.md`; controle total do PNG exportado |
-| Tailwind e JSZip via CDN | Regra 2 do `claude.md`. Consequência: precisa de internet no primeiro carregamento |
-| Base de design 1920×1080 | Regra 4 do `claude.md`. Há também 1280×720, 2560×1440 e 3840×2160 |
+| Tailwind compilado e embutido; JSZip via CDN | Regra 2 do `claude.md`. Desde a R7 o CSS do Tailwind é gerado por `node tools/build-css.mjs` e fica dentro do HTML (sem script de CDN). JSZip e fontes ainda pedem internet no primeiro carregamento |
+| Base de design 1920×1080 | Regra 4 do `claude.md`. Há também 1280×720, 2560×1440, 3840×2160 e presets de celular e tablet (R7) |
 | Idiomas PT e EN | Decisão do autor (R2) |
 
 ### 1.3 Canvas e cena
-- Resoluções: 1920×1080 (padrão), 2560×1440, 1280×720 e 3840×2160.
+- **Resoluções (R7), em grupos no seletor da barra:**
+  - Desktop / Console: 1280×720, 1920×1080 (padrão), 2560×1440, 3840×2160.
+  - Celular (retrato): 1080×1920 (9:16), 1080×2400 (Android 20:9), 1170×2532 (iPhone).
+  - Tablet (paisagem): 2048×1536 (iPad 4:3), 2732×2048 (iPad Pro).
+  - O botão **girar** troca largura e altura (os itens não se movem). Resolução fora da lista (cena girada, projeto aberto) aparece no grupo "Personalizada".
+- **Área segura (R7):** nos presets mobile, faixas listradas mostram notch, status bar e barra de gestos (valores em `SAFE_AREAS`: iPhone e iPad Pro pelos insets do Apple HIG; Android 20:9 com valores típicos, que variam por modelo). O botão ao lado liga/desliga (preferência do navegador). As bordas da área segura entram no snap. Não aparece no export; vai no manifest (`safeArea`).
+- **Barra superior (R7):** 3 zonas. Esquerda: salvar, abrir, **importar para a cena**, desfazer/refazer e inserir. Centro: resolução, girar, área segura, snap, grid, réguas. Direita: zoom, Scripts, **Exportar ▾** e idioma.
+- **Barra inferior do viewport (R8):** além de resolução e fundo, **Visão** simula protanopia, deuteranopia, tritanopia e tons de cinza (filtro SVG com as matrizes de Machado et al. 2009, só no canvas do editor) e **Teste de tradução** acentua e alonga os textos (+60% até 10 letras, +40% até 20, +30% acima, entre colchetes), marca em vermelho tracejado o que estourar a caixa e mostra a contagem. Nada disso entra no export.
+- **Painéis laterais (R7):** a borda da lista de camadas e a do Inspector se arrastam (cursor de duas setas). Limites: camadas 200–480 px, Inspector 260–560 px, e o viewport nunca fica abaixo de 360 px. Duplo clique volta ao padrão (256/320); com foco na alça, setas movem 16 px (Shift = 64). A largura fica nas preferências do navegador.
 - Zoom de 20% a 300%, com a roda do mouse centrada no cursor, mais os botões Fit e 1:1.
 - Pan com Espaço + arrastar ou com o botão do meio.
 - **Fundo da cena** (R3): transparente (xadrez) ou cor sólida. A cor entra no export da cena inteira, nunca no PNG de um item.
@@ -76,7 +84,9 @@ O Inspector edita **toda a seleção**. A exceção são nome, posição e taman
 | Cantos | Arredondado ou chanfrado, raio único ou por canto |
 | Preenchimento | Sólido ou gradiente (vertical, horizontal, diagonal, radial), opacidade, 2 cores |
 | Borda | Solid, bevel, inset, glow, tracejada, dupla; largura, cor, intensidade do relevo |
-| Efeitos (R3) | Preset de sombra (Nenhuma, Suave, Profunda, Flutuante, Encaixe de slot); **sombra projetada** (cor, opacidade, blur, X, Y); **sombra interna** (cor, intensidade, profundidade, brilho na base) |
+| Efeitos (R3) | Preset de sombra (Nenhuma, Suave, Profunda, Flutuante, Encaixe de slot); **sombra projetada** (cor, opacidade, blur, X, Y); **sombra interna** (cor, intensidade, profundidade, brilho na base); **textura (R8)**: ruído/grão (`noise`), scanlines e espaçamento. O ruído é um ladrilho fixo de 128 px (semente constante), ancorado no item: igual na tela, no PNG e no SVG. O manifest avisa que a textura estica no 9-slice |
+| Posição: âncora (R8) | Horizontal (esquerda, centro, direita, esticar) e vertical (topo, meio, base, esticar), mais **Auto** pela posição. Ver 2.9 |
+| Texto: contraste (R8) | Selo com a razão WCAG entre a cor do texto e o que está atrás (o próprio fundo, se opaco; senão o item de baixo que cobre o centro do texto; senão a cor da cena). Mínimo 4,5:1, ou 3:1 para texto grande (≥ 24 px, ou ≥ 18,66 px em negrito). Contorno de 1 px ou mais conta a favor |
 | Guia 9-Slice | Mostra as margens no canvas, copia os metadados em JSON e liga "Gerar estados hover/pressed no ZIP" (R5; ligado por padrão em Botões) |
 
 ### 1.6 Camadas e grupos
@@ -86,6 +96,8 @@ O Inspector edita **toda a seleção**. A exceção são nome, posição e taman
 - **Cadeado (R5):** item trancado não é clicado, arrastado nem pego pelo retângulo de seleção no canvas; o clique atravessa. Serve para fundos e molduras grandes. Continua editável pela lista e pelo Inspector. Selecionado pela lista, ele mostra o gizmo tracejado e sem alças, e as setas e o arrasto movem só os destrancados.
 - **Arrastar na lista (R5):** soltar na metade de cima de uma linha põe na frente dela, na metade de baixo põe atrás. Soltar sobre um membro de grupo entra no grupo; soltar fora sai dele. Soltar no cabeçalho do grupo põe no topo do grupo. Arrastar o cabeçalho leva o grupo inteiro sem desfazê-lo. Arrastar um item selecionado leva a seleção toda. Na busca, a lista não arrasta.
 - Grupos de um nível, com recolher/expandir e renomear. Clicar no grupo seleciona todos os itens dele.
+- **Mesclar (Ctrl+E, R7):** os itens **visíveis** da seleção (2 ou mais) viram um único item "só imagem" (PNG em 2×, cortado na área com pixels, com sombras e brilhos inteiros), no lugar do mais alto deles na pilha. Itens ocultos da seleção ficam como estão. Se todos eram do mesmo grupo, o resultado continua no grupo. Perde a edição e o 9-slice; um Ctrl+Z desfaz. Botão na barra das camadas.
+- **Importar para a cena (R7):** botão na barra superior, ou arrastar um `.json` de layout para o canvas. Soma os itens aos atuais (o **Abrir** continua substituindo), com ids e grupos novos, no topo da pilha, já selecionados. Passa pela mesma validação do Abrir. Layout de outra resolução é escalado para caber e centralizado (posições, tamanhos, raios, bordas, sombras e fontes); guias, fundo e rascunho dele são ignorados.
 - Com muitos itens a lista rola, e selecionar um item no canvas rola a lista até ele.
 
 ### 1.7 Rascunho / Blockout
@@ -103,6 +115,8 @@ Uma imagem de referência (mockup) fica atrás da cena, com opacidade ajustável
 | Ctrl+V com imagem no clipboard (R5) | Print de tela ou "copiar imagem": cria um item só com a imagem (sem fundo, borda nem sombra), no tamanho natural (até 80% da cena), centralizado e selecionado. Não mexe no ícone da seleção |
 | Ctrl+Shift+V com imagem (R5) | Troca o ícone de todos os itens selecionados. Sem seleção, cria um item novo |
 | Ctrl+G / Ctrl+Shift+G | Agrupar / desagrupar |
+| Ctrl+E (R7) | Mesclar a seleção numa imagem |
+| Soltar `.json` no canvas (R7) | Importar o layout para a cena (soma, não substitui) |
 | Ctrl+] / Ctrl+[ | Subir / descer uma camada |
 | Ctrl+Shift+] / Ctrl+Shift+[ | Trazer para a frente / enviar para o fundo |
 | Setas / Shift+setas | Mover 1 px / 10 px |
@@ -114,6 +128,8 @@ Uma imagem de referência (mockup) fica atrás da cena, com opacidade ajustável
 | Shift na alça de canto | Manter a proporção |
 | Shift na alça de rotação (R3) | Girar em passos de 15° |
 | Espaço + arrastar / botão do meio | Pan |
+| Shift+1 / Shift+0 (R8) | Enquadrar a cena / zoom 100% (também nos botões Fit e 1:1) |
+| Ctrl + / Ctrl − (R8) | Zoom a partir do centro (no lugar do zoom da página) |
 | Ctrl+J ou F2 | Abrir/fechar a Bancada de Scripts |
 | Ctrl+Enter (na bancada) | Executar script |
 | Esc (na bancada) | Fechar a bancada |
@@ -129,21 +145,17 @@ Uma imagem de referência (mockup) fica atrás da cena, com opacidade ajustável
 
 ## 2. Arquitetura Técnica & Estado (TDD)
 
-### 2.1 Organização do arquivo
-Tudo vive em `devUI-Studio.html`. O `<script>` principal é dividido em blocos, nesta ordem:
+### 2.1 Organização do código (R8: módulos em `src/`)
+O usuário continua recebendo **um arquivo só**, `devUI-Studio.html`, mas desde a R8 ele é **gerado** a partir de `src/` por `node tools/build.mjs` (sem npm no app; o build só concatena e depois roda o `build-css`).
 
-1. `state` e referências de DOM
-2. Idioma (`EN`, `t()`, `setLanguage()`)
-3. Persistência e histórico (autosave, snapshots, undo/redo)
-4. Modelo (`COMPONENT_DEFAULTS`, `normalizeComponent`, `createComponentPreset`)
-5. Renderer (geometria, preenchimento, sombras, ícone, anel, borda, texto)
-6. Gizmo, camadas e grupos
-7. Inspector (`INSPECTOR_BINDINGS`)
-8. Viewport: zoom, grid, réguas, guias, snap, mouse
-9. Teclado, toolbar, rascunho
-10. Export (PNG, cena, ZIP + manifest)
-11. API `Studio`, bancada de scripts, templates
-12. Inicialização (`load`)
+- `src/shell.html`: `<head>`, esqueleto do `<body>` e diretivas `@include`.
+- `src/css/app.css`: estilos próprios. O CSS do Tailwind é gerado e embutido à parte.
+- `src/html/10..50-*.html`: barra superior, painel esquerdo, viewport, Inspector, modais.
+- `src/js/01..20-*.js`: o script principal em 20 pedaços, concatenados em ordem de nome num **único** `<script>`. Não são ES modules: tudo compartilha o escopo, então nada muda em tempo de execução. Mapa completo em `src/README.md`.
+
+**Como o corte foi validado:** o primeiro build a partir de `src/` saiu byte a byte idêntico ao arquivo anterior. Daqui em diante, `test-static-deploy.mjs` confere que o HTML está em dia com `src/`, e o `build-deploy.mjs` se recusa a montar o `deploy/` se não estiver. O maior arquivo tem ~660 linhas (antes, 8.338 num só).
+
+**Fluxo de mudança:** editar `src/` → `node tools/build.mjs` → `node tests/run-all.mjs`.
 
 ### 2.2 O objeto `state`
 | Campo | Tipo | Descrição |
@@ -217,7 +229,7 @@ Ordem dos passes de cada componente:
 | `game_dev_ui_studio_autosave` | IndexedDB (R4) | Projeto (componentes, grupos, guias, fundo da cena) |
 | `game_dev_ui_studio_autosave_ref` | IndexedDB (R4) | Rascunho (imagem grande, gravada só quando muda) |
 | `game_dev_ui_studio_templates` | localStorage | Templates de script do usuário |
-| `game_dev_ui_studio_editor_prefs` | localStorage | Snap, tamanho do grid, grid visível, réguas visíveis, resolução do export (R5) |
+| `game_dev_ui_studio_editor_prefs` | localStorage | Snap, tamanho do grid, grid visível, réguas visíveis, resolução do export (R5), área segura visível e largura dos painéis (R7) |
 | `game_dev_ui_studio_lang` | localStorage | Idioma (`pt` ou `en`) |
 | `game_dev_ui_studio_inspector_ui` | localStorage | Seções recolhidas do Inspector (R5) |
 
@@ -236,10 +248,89 @@ Todo JSON de fora (Abrir layout, autosave, colar) é tratado como não confiáve
 - **`sanitizeProjectData(data)`** (em `loadProjectFromData`): resolução só entre 16 e 8192 px (fora disso mantém a atual), ids ausentes/repetidos renumerados, `nextId`/`nextGroupId`/`nextGuideId` acima do maior id, grupos e guias com campos validados, fundo da cena só com cor hex, rascunho só com `data:image/`.
 - **`normalizeComponent(comp)`**: além de completar campos, força o tipo pelo padrão de `COMPONENT_DEFAULTS` (número finito, boolean, string), cores só em hex (`#rgb`, `#rrggbb`, `#rrggbbaa`), `iconSrc` só `data:image/`, `groupId` número ou `null`. Vale também para colar (Ctrl+V).
 - **Limite de arquivo:** `MAX_PROJECT_BYTES` = 50 MB no Abrir layout.
-- **CDN:** JSZip com SRI (`integrity`). O Tailwind Play CDN não aceita SRI; trocar por CSS compilado é decisão pendente do @tech-lead.
-- **Vercel (`vercel.json`):** rewrite de `/` para `devUI-Studio.html` e headers CSP, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, COOP. O CSP precisa de `'unsafe-eval'` (Script Workbench usa `AsyncFunction`) e `'unsafe-inline'` (script principal inline e Tailwind). Validado com servidor local simulando os headers: zero violações.
+- **CDN:** JSZip com SRI (`integrity`). **Tailwind (R7):** o Play CDN (script de terceiro sem SRI, que compilava o CSS no navegador a cada carregamento) saiu. `node tools/build-css.mjs` roda o Tailwind CLI 3.4.17 (via `npx`, config em `tools/tailwind.config.cjs`) sobre uma cópia do HTML e embute o CSS minificado (~25 KB) entre `<!-- tailwind:start -->` e `<!-- tailwind:end -->`, no fim do `<head>` (mesma posição da cascata do Play CDN). `--check` diz se o bloco está desatualizado. Classe Tailwind nova no HTML ou em string do JS **exige rodar o build**. Validação da troca: screenshots antes/depois em 1920 e 1366 px idênticos pixel a pixel.
+- **Vercel (`vercel.json`):** rewrite de `/` para `devUI-Studio.html` e headers CSP, `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, COOP. O CSP precisa de `'unsafe-eval'` (Script Workbench usa `AsyncFunction`) e `'unsafe-inline'` (script principal inline e estilos). Desde a R7, `cdn.tailwindcss.com` saiu do `script-src`.
 - **Publicação sem git:** `node tools/build-deploy.mjs` monta `deploy/` com o que vai para o GitHub (upload pelo navegador). `.vercelignore` tira testes e docs do site publicado.
 - Testes: `tests/test-security-import.mjs`.
+
+### 2.8 TDD — Script da seleção (R7, B2)
+**Objetivo:** transformar um layout feito à mão em código `Studio` legível, para servir de base a outros devs e de template reaproveitável.
+
+**Entradas na interface**
+- Menu **Exportar ▾ → Script da seleção (JS)**: abre a Bancada com o código no editor (não executa). Sem seleção, gera a cena inteira.
+- Bancada: botão **📋 Da seleção** na linha de templates, mesmo comportamento.
+- API: `Studio.toScript(alvos?, { relative, icons })` devolve a string.
+
+**Formato gerado**
+```js
+// Gerado pelo Game Dev UI Studio (cena 1920×1080). 3 item(ns).
+// Mude ox/oy para recriar o conjunto em outro lugar.
+const ox = 600, oy = 300;
+const janela = Studio.create('Painel', { name: "Janela", x: ox + 0, y: oy + 0, w: 480, h: 320, fillColor1: "#1e1e24" });
+const titulo = Studio.text("INVENTÁRIO", { name: "Título", x: ox + 24, y: oy + 16, w: 432, h: 48, fontSize: 28 });
+await Studio.setIcon(slot, "data:image/png;base64,...");
+Studio.group([janela, titulo], "Janela Inventário");
+```
+
+**Regras (@script-dev)**
+1. **Ordem:** a das camadas (fundo → frente). O script recria a mesma pilha, porque `create` sempre empilha no topo.
+2. **Só o que difere:** cada prop é comparada com o preset do tipo (`createComponentPreset(tipo)` gerado sem gastar id: `nextId` é restaurado). Entram sempre `name`, `x`, `y`, `w`, `h`. Ficam de fora `id`, `type`, `groupId`, `icon` e `iconSrc`.
+3. **Texto:** item `Texto` usa `Studio.text(texto, props)`. **Anel:** se `text` entra, `ringShowValue` entra junto (senão o `applyProps` desligaria o valor automático).
+4. **Valores:** sempre por `JSON.stringify` (aspas, quebras de linha e `</script>` saem escapados; nome malicioso não vira código). Números com até 2 casas.
+5. **Variáveis:** nome do item em camelCase sem acento, só `[a-zA-Z0-9_]`, sem colidir com palavras reservadas nem entre si (`painel`, `painel2`); fallback `item1`.
+6. **Posição relativa** (`relative`, padrão `true`): `ox`/`oy` = canto superior esquerdo da seleção; `x: ox + dx`. Com `false`, coordenadas absolutas.
+7. **Imagens** (`icons`: `'embed'` padrão ou `'omit'`): `embed` gera `await Studio.setIcon(var, dataURL)` depois do `create` (as props de ajuste do ícone já foram no `create`). Imagem maior que 200 KB vira linha comentada `// Studio.setIcon(var, ...) — imagem de N KB omitida`, para o script não ficar enorme.
+8. **Grupos:** para cada grupo com membros na seleção, `Studio.group([vars], nome)` no fim, na ordem dos grupos.
+9. **Sem efeito colateral:** gerar não mexe em `state` (seleção, `nextId` e histórico ficam iguais).
+
+**Critério de aceite (@qa-auditor):** round-trip. Gerar o script da cena, limpar, executar o script e comparar cada componente com o original (todas as props de `COMPONENT_DEFAULTS` menos `id`/`groupId`, mais a imagem e o nome do grupo). Também: script de nome com aspas e `</script>` não quebra, variáveis únicas, imagem grande omitida, seleção inalterada.
+
+**Fora do escopo:** gerar `createGrid` a partir de itens alinhados (detectar padrão) e scripts de animação.
+
+### 2.9 TDD — Âncoras (R8)
+**Objetivo:** dizer à engine como cada item se comporta quando a tela tem outra proporção (20:9, 4:3, ultrawide). Hoje o export só leva posição fixa a partir do canto superior esquerdo.
+
+**Modelo:** duas props novas por componente, com o padrão igual ao comportamento atual (nada muda em projetos antigos):
+- `anchorH`: `left` (padrão) | `center` | `right` | `stretch`
+- `anchorV`: `top` (padrão) | `middle` | `bottom` | `stretch`
+
+**Editor**
+- Inspector, seção Posição: dois seletores (Horizontal / Vertical) e o botão **Auto**, que escolhe pela posição do item na cena (terço esquerdo/central/direito; item com mais de 80% da largura = esticar). Vale para toda a seleção.
+- **Prévia responsiva:** trocar a resolução pelo seletor ou pelo botão girar reposiciona os itens pelas âncoras, como as constraints do Figma: `left` mantém a margem esquerda; `right` mantém a direita; `center` mantém a distância ao centro; `stretch` mantém as duas margens e muda a largura. Com o padrão (`left`/`top`) nada se move. Abrir projeto e desfazer **não** reposicionam. Um Ctrl+Z desfaz a troca inteira.
+
+**Export (manifest, por asset, em px de saída; W×H = resolução de saída)**, bloco `anchors`:
+- `unity` (Y para cima): `anchorMin`, `anchorMax`, `pivot` e `offsetMin`/`offsetMax` (cantos inferior-esquerdo e superior-direito do rect em relação às âncoras; basta atribuir no RectTransform). Âncora de ponto: pivot = âncora.
+- `unreal` (Y para baixo, CanvasPanel Slot): `minimum`, `maximum`, `alignment` e `offsets {left, top, right, bottom}`. Eixo de ponto: left/top = posição do ponto de alinhamento em relação à âncora e right/bottom = tamanho; eixo esticado: margens.
+- `godot`: `anchor_left/top/right/bottom` e `offset_*` do retângulo da textura (com o padding, igual ao `.tscn`). O `.tscn` passa a usar `layout_mode = 1` com essas âncoras quando o item não é `left`/`top`, e `grow_horizontal/vertical` coerentes (direita/base = crescer para o início).
+
+**Critérios de aceite (@qa-auditor):** padrão não muda nada (manifest e `.tscn` iguais para `left`/`top`); para cada combinação, recompor o rect a partir de `offsetMin/offsetMax` (Unity), `offsets` (Unreal) e `offset_*` (Godot) devolve a posição e o tamanho originais; prévia responsiva (item `right` a 20 px da borda continua a 20 px em outra largura; `stretch` mantém margens); Auto escolhe certo nos terços; undo desfaz a troca de resolução com a relayout num passo.
+
+**Fora do escopo:** âncoras relativas a grupos (hoje os grupos não são contêineres) e Canvas Scaler por item.
+
+### 2.10 TDD — Componentes reutilizáveis (R8, aguardando aprovação do autor)
+**Objetivo:** mudar o estilo de todos os botões (slots, painéis...) de um jogo editando um só. É o que Figma (main component/instance) e as engines (prefab) fazem, e o que mais ajuda projetos grandes.
+
+**Modelo (MVP: componente de 1 item; grupo como componente fica para depois)**
+- `symbolId` (número ou `null`): liga mestre e instâncias. `isMaster` (bool): o mestre é um item vivo da cena, como no Figma.
+- `overrides` (array de chaves): props que a instância mudou por conta própria e que o mestre não sobrescreve mais.
+- **Nunca sincronizam** (sempre da instância): `id`, `name`, `x`, `y`, `w`, `h`, `rotation`, `groupId`, `visible`, `locked`, `anchorH/V`. Todo o resto (estilo, texto, ícone, textura, estados) vem do mestre até virar override.
+
+**Comportamento**
+- **Criar componente** (Ctrl+Alt+K e botão nas camadas): o item selecionado vira mestre ◆. **Criar instância**: duplicar (Ctrl+D) ou copiar/colar um mestre ou uma instância gera instância ◇ (duplicar o mestre não cria um segundo mestre).
+- **Propagação:** um passo `syncInstances()` antes de cada `renderScene` copia do mestre as chaves que não são override. Editar uma prop numa instância (Inspector ou script) adiciona a chave em `overrides`.
+- **Inspector:** "Mestre: N instâncias" ou "Instância de *X*", com **Ir para o mestre**, **Restaurar do mestre** (limpa overrides) e **Desvincular**.
+- **Excluir o mestre:** as instâncias ficam desvinculadas (continuam iguais, sem ligação) e um toast avisa; Ctrl+Z restaura tudo. *(Decisão do autor: alternativa seria promover a primeira instância a mestre.)*
+- Mesclar instâncias gera item desvinculado. Importar layout traz mestres e instâncias com ids novos, ligados entre si.
+
+**Export**
+- `asset.component = { symbol, role: "master" | "instance", overrides }`.
+- **Textura compartilhada** *(decisão do autor, recomendado ligar)*: instância sem override visual reaproveita o PNG do mestre (o 9-slice estica para o tamanho dela), `asset.file` aponta para o arquivo do mestre e `sharedTexture: true`. Menos arquivos no ZIP e um sprite só na engine; na Godot, a mesma textura/variação de tema.
+
+**Scripts:** `Studio.makeComponent(alvo)`, `Studio.instance(mestre, props)`, `Studio.detach(alvos)`, `Studio.resetOverrides(alvos)`. O script da seleção gera `makeComponent` e `instance` em vez de copiar o estilo.
+
+**Segurança:** `normalizeComponent` valida `symbolId` (número ou `null`), `isMaster` (bool) e `overrides` (só chaves de `COMPONENT_DEFAULTS` que podem sincronizar); instância órfã (sem mestre) fica desvinculada ao abrir.
+
+**Critérios de aceite:** mudar a cor do mestre muda as instâncias sem override; override de texto sobrevive a mudança de texto no mestre; Restaurar volta ao mestre; Desvincular congela; excluir mestre desvincula e Ctrl+Z desfaz; salvar/abrir e colar em outra aba mantêm a ligação; ZIP com textura compartilhada tem 1 PNG para mestre + instâncias iguais; projeto antigo abre igual; `syncInstances` com 500 instâncias abaixo de 2 ms.
 
 ---
 
@@ -273,6 +364,12 @@ Apelidos de tipo aceitos: `slot`; `botão`/`botao`/`button`/`btn`; `barra`/`bar`
 | `Studio.remove(alvos)` | número | Exclui e limpa grupos vazios |
 | `Studio.copy(alvos)` (R4) | número | Guarda os alvos na reserva interna (não mexe no clipboard do sistema) |
 | `await Studio.paste()` (R4) | array | Cola a reserva (a mesma regra do Ctrl+V) e devolve os componentes novos |
+| `Studio.lang` / `Studio.tr(pt, en)` (R8) | texto | Idioma da interface e texto no idioma certo (base dos templates bilíngues) |
+| `Studio.autoAnchor(alvos)` (R8) | array | Âncora pela posição na cena, como o botão Auto |
+| `Studio.safeArea` (R7) | objeto ou `null` | Área segura da resolução atual `{top, right, bottom, left}` em px (só presets mobile) |
+| `Studio.toScript(alvos?, opts)` (R7) | texto | Código que recria os alvos (sem alvo: seleção; sem seleção: cena). `opts`: `relative` (padrão `true`), `icons: 'embed' \| 'omit'`. Regras no 2.8 |
+| `await Studio.merge(alvos)` (R7) | componente ou `null` | Mescla numa imagem só, como o Ctrl+E |
+| `await Studio.importLayout(json)` (R7) | array | Soma um layout salvo à cena (mesma validação do Abrir; escala se a resolução for outra) |
 | `Studio.group(alvos, nome)` | grupo | Agrupa |
 | `Studio.ungroup(grupoIdOuAlvo)` | — | Desagrupa |
 | `Studio.align(alvos, modo)` | array | `left`, `right`, `top`, `bottom`, `centerX`, `centerY`; 1 alvo = em relação ao canvas |
@@ -337,6 +434,7 @@ Forma:     shapeKind(star|polygon|ellipse|arrow) shapeSides(3-12) shapeInnerRati
 
 ### 3.7 Templates
 - **Prontos:** Upgrade Stats, Grid Inventário 4x4, HUD RPG, Hotbar 1–8, Pintar Botões Dourado, Distribuir Horizontal.
+- **Bilíngues (R8):** todos usam `Studio.tr('PT', 'EN')`, então geram nomes, textos e grupos no idioma da interface. Se o último script rodado foi um template **sem edição** e a cena não mudou desde então, trocar PT ⇄ EN volta ao estado de antes e roda o template de novo no outro idioma (como a cena de boas-vindas). Mexer na cena ou no código desliga isso.
 - **Do usuário:** "💾 Salvar como template" guarda o código do editor com um nome. Os templates aparecem em "Meus templates" (clique carrega, × exclui).
 - **Compartilhar:** Exportar gera `devui_script_templates.json` (`{format: "devui-script-templates", version: 1, templates: [{name, code, createdAt}]}`). Importar mescla por nome.
 
@@ -345,13 +443,17 @@ Forma:     shapeKind(star|polygon|ellipse|arrow) shapeSides(3-12) shapeInnerRati
 ## 4. Pipeline de Exportação & Engines
 
 ### 4.1 Tipos de export
-| Botão | Saída |
-|---|---|
-| **Item** | PNG do item selecionado, com 32 px de padding |
-| **Cena** | PNG da cena inteira na resolução atual, com o fundo da cena e, opcionalmente, o rascunho |
-| **Batch ZIP** | Todos os componentes, versões sem ícone, barras separadas, o manifest e a pasta da Godot |
+Desde a R7 tudo fica no menu **Exportar ▾** da barra superior (`#btnExportMenu` abre `#exportMenu`): formato e resolução no topo, as três ações embaixo. Os IDs dos botões e selects não mudaram.
 
-**Resolução do export (R5):** o seletor ao lado dos botões escolhe a saída: nativa, 2K (2560×1440) ou 4K (3840×2160). A escala é `altura alvo / altura da cena` (1080p → 2K = 1,333; 4K = 2) e vale para Item, Cena, Batch ZIP e "Copiar Metadados JSON". Só existem opções que ampliam: numa cena 1440p, o seletor mostra nativo e 4K. Texto, SVG, linhas, sombras e brilhos saem nítidos; ícone PNG/JPG ampliado além do tamanho original ganha aviso de "borrado" no manifest. A escolha fica nas preferências do navegador, não no projeto.
+| Ação do menu | Saída |
+|---|---|
+| **Item selecionado** (`#btnExportSelected`) | PNG do item selecionado, com 32 px de padding |
+| **Cena inteira** (`#btnExportScene`) | PNG da cena inteira na resolução atual, com o fundo da cena e, opcionalmente, o rascunho |
+| **Pacote ZIP para engines** (`#btnExportBatch`) | Todos os componentes, versões sem ícone, barras separadas, o manifest e a pasta da Godot |
+
+**Script da seleção (R7):** quarto item do menu; abre a Bancada com o código `Studio` que recria a seleção (ver 2.8).
+
+**Resolução do export (R5):** o seletor no topo do menu escolhe a saída: nativa, 2K ou 4K. A escala é `lado menor alvo / lado menor da cena` (R7: em paisagem é a altura, como antes; em retrato é a largura, então 1080×1920 em 4K sai 2160×3840). Ex.: 1080p → 2K = 1,333; 4K = 2 e vale para Item, Cena, Batch ZIP e "Copiar Metadados JSON". Só existem opções que ampliam: numa cena 1440p, o seletor mostra nativo e 4K. Texto, SVG, linhas, sombras e brilhos saem nítidos; ícone PNG/JPG ampliado além do tamanho original ganha aviso de "borrado" no manifest. A escolha fica nas preferências do navegador, não no projeto.
 
 Regras comuns: camadas ocultas também são exportadas no ZIP; o PNG de um item sai **sem rotação**; o texto só entra no PNG quando "Incluir texto no PNG" estiver marcado.
 
@@ -369,19 +471,30 @@ GameUI_Batch_1920x1080.zip
 │   ├── <nome>_track.png           Trilho vazio
 │   └── <nome>_fill.png            Preenchimento cheio, sem borda e sem sombra
 └── GameUI_Godot/                  (R4) Copie para a raiz do projeto Godot
-    ├── game_ui.tscn               Cena que monta o HUD inteiro
+    ├── game_ui.tscn               Cena que monta o HUD inteiro (R8: itens ancorados usam layout_mode = 1)
+    ├── game_ui_theme.tres         (R8) Theme: cada Botão = variação de Button (normal/hover/pressed), cada Painel/Slot = variação de PanelContainer; StyleBoxTexture 9-slice com expand_margin = padding
     └── *.png                      Só as texturas que a cena usa
 ```
 Nomes repetidos recebem o sufixo `_<id>` para não se sobrescreverem.
 
-### 4.3 Schema do `ui_engine_manifest.json` (v5)
-A v5 (R4) só acrescenta campos: `godot` no topo, e `godotSettings` e `engines` em cada asset. Quem lê a v4 continua funcionando. A R5 acrescenta `designResolution` e `exportScale` no topo, e `states` nos assets com estados. **Todos os valores em px estão na resolução de saída** (`resolution`), inclusive `positionIn1080pScene`, que mantém o nome antigo por compatibilidade.
+### 4.3 Schema do `ui_engine_manifest.json` (v6)
+A v5 (R4) só acrescenta campos: `godot` no topo, e `godotSettings` e `engines` em cada asset. Quem lê a v4 continua funcionando. A R5 acrescenta `designResolution` e `exportScale` no topo, e `states` nos assets com estados. **A v6 (R7, mobile)** só acrescenta, no topo:
+- `orientation`: `"portrait"` ou `"landscape"`.
+- `safeArea`: `{top, right, bottom, left}` em px de saída, ou `null` (desktop).
+- `unityCanvasScaler`: `{uiScaleMode: "ScaleWithScreenSize", referenceResolution: {x, y}, screenMatchMode: "MatchWidthOrHeight", matchWidthOrHeight}`; retrato casa a largura (`0`), paisagem a altura (`1`).
+- `godot.projectSettings` ganha `display/window/handheld/orientation` (`0` paisagem, `1` retrato), e em retrato o `stretch/aspect` vira `keep_width`.
+- **R8 (ainda v6, só acrescenta):** `anchors` em cada asset (`horizontal`, `vertical`, `unity`, `unreal`, `godot`; fórmulas no 2.9) e `godot.theme` (`file`, `resPath`, `typeVariations: [{name, baseType, component}]`).
+
+ **Todos os valores em px estão na resolução de saída** (`resolution`), inclusive `positionIn1080pScene`, que mantém o nome antigo por compatibilidade.
 
 ```json
 {
   "project": "Game Dev UI Studio Export",
-  "manifestVersion": 5,
+  "manifestVersion": 6,
   "resolution": { "width": 1920, "height": 1080 },
+  "orientation": "landscape",
+  "safeArea": null,
+  "unityCanvasScaler": { "uiScaleMode": "ScaleWithScreenSize", "referenceResolution": { "x": 1920, "y": 1080 }, "screenMatchMode": "MatchWidthOrHeight", "matchWidthOrHeight": 1 },
   "exportPadding": 32,
   "engineReady": true,
   "godot": {
@@ -525,10 +638,12 @@ A v5 (R4) só acrescenta campos: `godot` no topo, e `godotSettings` e `engines` 
 | @qa-auditor | Testes, edge cases, relatórios de bug |
 | @perf-profiler | 60 FPS, memória, Blob URLs, debounce |
 | @security-auditor | Entrada não confiável (JSON, clipboard, templates), innerHTML, CDN/SRI, headers do deploy |
+| @field-research | Benchmark de ferramentas e jogos, docs oficiais das engines, pesquisa com usuários; entrega brief com fontes, sem código |
 
 ### 5.2 Fluxo padrão: nova feature
 1. **Pedido:** o autor descreve o que quer (em chat ou com @tag).
 2. **Triagem (@tech-lead):** classifica a complexidade (baixa, média, alta) e decide se precisa de TDD. Feature média ou alta = TDD antes de codar.
+   - **Pesquisa (@field-research), quando a resposta não é óbvia:** como ferramentas e jogos resolvem o mesmo problema e o que as engines exigem, em brief com fontes. Entra antes da especificação.
 3. **Especificação (@product-spec):** fluxo do usuário, atalhos, estados visuais, textos PT e EN, e o que acontece com projetos antigos.
 4. **Design técnico (@tech-lead + especialistas):** campos novos em `COMPONENT_DEFAULTS`, impacto no renderer, no histórico e no manifest. Registrar no TDD.
 5. **Implementação:** em blocos, com edições pontuais (regra 1 do `claude.md`). Controles novos do Inspector entram por `INSPECTOR_BINDINGS`; textos novos entram no dicionário `EN`.
@@ -553,7 +668,8 @@ A v5 (R4) só acrescenta campos: `godot` no topo, e `godotSettings` e `engines` 
 - [ ] Idioma: nenhuma chave nova sem tradução (script `check-i18n`), e a troca PT ⇄ EN atualiza a tela
 - [ ] Export: manifest com os campos novos e PNG com o tamanho esperado
 - [ ] Atalhos não disparam dentro de inputs nem com a bancada aberta
-- [ ] Screenshot da interface em 1366 px e 1920 px, sem estouro de layout
+- [ ] Screenshot da interface em 1366 px e 1920 px, sem estouro de layout (a `test-topbar.mjs` mede 1280/1366/1920)
+- [ ] Classe Tailwind nova? `node tools/build-css.mjs` e depois `--check` sem aviso
 
 ### 5.5 Checklist do @perf-profiler
 - [ ] Nada pesado dentro de `mousemove`: alvos de snap calculados no `mousedown`
@@ -562,6 +678,7 @@ A v5 (R4) só acrescenta campos: `godot` no topo, e `godotSettings` e `engines` 
 - [ ] Histórico sem duplicar imagens (`assetRegistry`)
 - [ ] Autosave e histórico no debounce de 500 ms, nunca por evento
 - [ ] Nenhum canvas do tamanho da cena criado para sobreposições (grid em CSS, linhas em SVG)
+- [ ] Otimização só entra com medição antes/depois. **Registro R7:** cache de sprites para a sombra projetada foi implementado, medido e **descartado**. `renderScene` da cena de boas-vindas: 1,96 → 2,49 ms com GPU (Intel Iris Xe) e 2,75 → 2,73 ms sem GPU; 200 painéis com blur 40: 1,06× (GPU) e 1,25× (software). O render inteiro já cabe folgado nos 16 ms de um quadro, e o cache custaria até 64 MB de memória. Reavaliar só se aparecer cena real acima de ~8 ms
 - [ ] `shadowBlur` usado só onde há sombra ligada
 
 ### 5.6 Definição de pronto
@@ -594,11 +711,24 @@ Uma entrega está pronta quando os dois checklists passaram, a documentação fo
 | R4 | Até 500 ms de edição se perdiam ao fechar a aba | O autosave só gravava depois do debounce | Gravação imediata em `visibilitychange` |
 | R4 | Anel sempre nascia com "75" no centro, e o número não acompanhava o valor | O preset gravava `text: '75'` fixo | Opção "Mostrar valor no centro" (`ringShowValue`): o número vem de `ringValue` no desenho; desligada, o anel fica sem texto |
 | R6 | JSON de layout de terceiros podia injetar HTML (XSS) e travar a aba | `normalizeComponent` só completava campos ausentes, sem checar tipo; as snap lines montam `<line>` por `innerHTML` com as coordenadas; resolução aceitava qualquer valor | `sanitizeProjectData` + tipagem em `normalizeComponent`, imagens só `data:image/`, resolução 16–8192, limite de 50 MB |
+| R7 | Barra superior poluída e cortada em 1366 px (Exportar e idioma fora da tela) | 8 grupos com estilos diferentes; Res, formato, resolução e 3 botões de export disputando a mesma linha | Grid de 3 zonas (arquivo/inserir, cena, visualização/export) com `.tb-group`/`.tb-btn`; export num menu único. `tests/test-topbar.mjs` mede o estouro em 1280/1366/1920 px |
+| R8 | Botões −, +, Fit e 1:1 da barra não faziam nada (relatado pelo autor) | Os botões existiam no HTML e nas constantes do JS, mas nenhum listener ligava eles; `setZoom` não tinha chamadas. Nenhum teste cobria | Listeners religados (zoom a partir do centro), atalhos Shift+1/Shift+0/Ctrl±, e 4 verificações em `test-topbar.mjs` |
+| R7 | Alça do painel esquerdo não pegava o clique (achado no teste) | A régua vertical do viewport tinha o mesmo `z-30` e vinha depois no DOM, cobrindo metade da alça | Alças em `z-[35]` |
+| R7 | Seletor de resolução alargava a barra em 1280 px (achado no teste) | Opção "Personalizada" com texto longo define a largura do `<select>` | Personalizada vira um `<optgroup>` próprio com o texto só "W×H"; rótulo "Snap" some abaixo de 1400 px |
 | R3 | Régua vertical com 10 px de altura (achado nos testes antes da entrega) | `<canvas>` absoluto com `top`+`bottom` não estica: usa a altura intrínseca | Largura/altura explícitas com `calc(100% - 1.25rem)` |
 
 ### 5.8 Limitações e pendências conhecidas
-- Funciona só com internet no primeiro carregamento (Tailwind, JSZip e fontes via CDN).
+- Funciona só com internet no primeiro carregamento (JSZip e fontes via CDN).
 - Autosave é por navegador e não sincroniza duas abas no mesmo projeto: a última a gravar vence.
 - Import na Unity, na Unreal e na Godot ainda não validado em projeto real.
 - Godot: o Anel sai como imagem simples (sem `TextureProgressBar` radial) e as fontes do Google não vão junto.
 - Edição livre de pontos e curvas (pen tool) está fora do escopo atual.
+
+### 5.9 Backlog de features (pedidas pelo autor)
+**Entregues na R7:** B1 (painéis redimensionáveis, ver 1.3) e B2 (script da seleção, TDD em 2.8). Também: mesclar (Ctrl+E), importar para a cena, resoluções mobile com área segura, Tailwind compilado.
+
+| # | Feature | Pedido | Agentes | Notas iniciais |
+|---|---|---|---|---|
+| B3 | **Vídeo de divulgação com /brag** | Gerar vídeo curto do Studio para README e redes | @field-research, @product-spec | Plano em `BRAG_PLANO_CASA.md` (o autor roda em casa). Hipótese de produto: exportar animação da UI (hover, barra caindo) em MP4/GIF, que passaria por TDD |
+| B1 ✓ | **Painéis laterais redimensionáveis** | Arrastar a borda da barra de camadas (esquerda) e do Inspector (direita) com o cursor de duas setas (`col-resize`) e ajustar a largura como quiser | @front-manager, @product-spec, @front-state-dev | Largura mínima/máxima por painel; duplo clique na alça volta ao padrão; salvar em `game_dev_ui_studio_editor_prefs`; recalcular o fit do canvas ao soltar; testar em 1366 px |
+| B2 ✓ | **Ver/copiar o script de um objeto ou da seleção** | Selecionar um item ou um conjunto (ex.: uma carta com painel, texto e outros campos) e obter o JS completo que recria aquilo | @script-dev, @backend-manifest, @front-manager | Gerar chamadas `Studio.create(tipo, props)` só com as props diferentes do preset, na ordem das camadas; ícones via `Studio.setIcon` (base64 pode ser grande: opção de omitir); grupos via `Studio.group`; posições relativas opcionais (para colar em outro lugar); abrir na Bancada ou copiar. Pedir TDD antes (complexidade média) |

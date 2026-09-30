@@ -1,5 +1,6 @@
 // Monta a pasta deploy/ com exatamente o que vai para o GitHub (upload pelo navegador, sem git).
 // Uso: node tools/build-deploy.mjs  → depois arraste o CONTEÚDO de deploy/ para "Add file > Upload files".
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,8 +10,15 @@ const OUT = path.join(ROOT, 'deploy');
 
 // Fora da lista de propósito: layouts de teste pessoais (stats.json, HUD_*.json).
 const FILES = ['devUI-Studio.html', 'vercel.json', '.vercelignore', 'README.md', 'LICENSE',
-  'claude.md', 'DOCS_ARQUITETURA_E_PROCESSOS.md'];
-const DIRS = ['tests', 'tools'];
+  'claude.md', 'DOCS_ARQUITETURA_E_PROCESSOS.md', 'BRAG_PLANO_CASA.md'];
+const DIRS = ['src', 'tests', 'tools'];
+
+// O HTML publicado precisa estar em dia com src/ (o código-fonte vai junto para o GitHub).
+const check = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'build.mjs'), '--check'], { encoding: 'utf8' });
+if (check.status !== 0) {
+  console.error(check.stdout || check.stderr);
+  process.exit(1);
+}
 
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT);
