@@ -2,6 +2,8 @@
 
 Editor de interfaces de jogo que roda direto no navegador. Monte HUDs, inventários, botões e barras numa cena 1920×1080 e exporte tudo pronto para **Unity**, **Unreal Engine** e **Godot 4**: PNGs com margens 9-slice, estados hover/pressed, SVG e um manifesto JSON com posições e dimensões.
 
+![Game Dev UI Studio: um HUD de RPG se monta peça por peça e a câmera recua revelando o editor](media/brag-preview.gif)
+
 Não precisa instalar nada, não tem login e nada sai do seu computador: o projeto fica salvo no próprio navegador.
 
 ## Recursos

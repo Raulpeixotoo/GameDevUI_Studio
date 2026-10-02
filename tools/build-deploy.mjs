@@ -11,7 +11,7 @@ const OUT = path.join(ROOT, 'deploy');
 // Fora da lista de propósito: layouts de teste pessoais (stats.json, HUD_*.json).
 const FILES = ['devUI-Studio.html', 'vercel.json', '.vercelignore', 'README.md', 'LICENSE',
   'claude.md', 'DOCS_ARQUITETURA_E_PROCESSOS.md', 'BRAG_PLANO_CASA.md'];
-const DIRS = ['src', 'tests', 'tools'];
+const DIRS = ['src', 'tests', 'tools', 'media']; // media/: GIF do README (o vídeo completo fica fora, em brag-output/)
 
 // O HTML publicado precisa estar em dia com src/ (o código-fonte vai junto para o GitHub).
 const check = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'build.mjs'), '--check'], { encoding: 'utf8' });

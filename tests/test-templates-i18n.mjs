@@ -21,7 +21,10 @@ try {
         Studio.select(['B1', 'B2']);
         try {
           await new AsyncFunction('Studio', 'figma', 'console', SCRIPT_PRESETS[key])(Studio, Studio, { log() {} });
-          out[lang + ':' + key] = { ok: true, names: Studio.getAll().map(c => c.name), groups: state.groups.map(g => g.name), texts: Studio.getAll().map(c => c.text).filter(Boolean) };
+          out[lang + ':' + key] = { ok: true, names: Studio.getAll().map(c => c.name), groups: state.groups.map(g => g.name), texts: Studio.getAll().map(c => c.text).filter(Boolean),
+            res: state.canvasWidth + 'x' + state.canvasHeight, anchored: Studio.getAll().filter(c => c.anchorH !== 'left' || c.anchorV !== 'top').length,
+            icons: Studio.getAll().filter(c => c.icon).length };
+          Studio.setResolution(1920, 1080);
         } catch (e) { out[lang + ':' + key] = { ok: false, err: e.message }; }
       }
     }
@@ -29,7 +32,12 @@ try {
     return out;
   `);
   const failed = Object.entries(all).filter(([, v]) => !v.ok).map(([k, v]) => `${k}: ${v.err}`);
-  check('todos os templates rodam em PT e EN sem erro', failed.length === 0 && Object.keys(all).length === 12, failed.join(' | '));
+  const presetCount = await page.evaluate(`Object.keys(SCRIPT_PRESETS).filter(k => k !== 'welcome').length`);
+  check('todos os templates rodam em PT e EN sem erro', failed.length === 0 && Object.keys(all).length === presetCount * 2 && presetCount >= 7, failed.join(' | ') || `${Object.keys(all).length} execuções`);
+  const sc = all['pt:showcase4k'], scEn = all['en:showcase4k'];
+  check('Vitrine 4K: cena 3840×2160 com 170+ peças em 16 grupos', sc.res === '3840x2160' && sc.names.length >= 170 && sc.groups.length === 16, `${sc.res} ${sc.names.length} peças ${sc.groups.length} grupos`);
+  check('Vitrine 4K: blocos ancorados e ícones SVG carregados', sc.anchored > 100 && sc.icons >= 40, `${sc.anchored} ancorados, ${sc.icons} ícones`);
+  check('Vitrine 4K: textos no idioma', sc.texts.includes('SENHOR DAS CINZAS') && scEn.texts.includes('LORD OF ASH') && scEn.groups.includes('07. Inventory'));
   check('Upgrade Stats em PT', all['pt:upgradeStats'].texts.includes('MELHORAR ATRIBUTOS') && all['pt:upgradeStats'].groups.includes('Rodapé'));
   check('Upgrade Stats em EN', all['en:upgradeStats'].texts.includes('UPGRADE STATS') && all['en:upgradeStats'].groups.includes('Footer'));
   check('Inventário: título e grupo no idioma', all['pt:inventoryGrid'].texts.includes('INVENTÁRIO') && all['en:inventoryGrid'].groups.includes('Inventory 4x4'));

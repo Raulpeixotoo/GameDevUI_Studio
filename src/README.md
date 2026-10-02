@@ -27,7 +27,8 @@ node tests/run-all.mjs        # testes headless no Chrome/Edge
 | `js/03-persistence.js` | Serialização do projeto, autosave em IndexedDB |
 | `js/04-history-project.js` | Undo/redo, abrir/salvar projeto, toast |
 | `js/05-model.js` | 9-slice, `COMPONENT_DEFAULTS`, âncoras, `normalizeComponent`, `sanitizeProjectData`, presets |
-| `js/06-welcome-scene.js` | Cena de boas-vindas (também é o preset 👋 da Bancada) |
+| `js/06-welcome-scene.js` | Cena de boas-vindas (também é o preset 👋 da Bancada) e `presetCodeFrom` |
+| `js/06b-showcase-scene.js` | Vitrine 4K (preset 🏆): HUD de RPG completo em 3840×2160, 176 peças, 16 grupos |
 | `js/07-renderer.js` | Geometria, preenchimento, texto, pseudo-localização, contraste, textura, `renderComponentToContext` |
 | `js/08-svg-export.js` | Export SVG vetorial |
 | `js/09-scene-layers.js` | `renderScene`, gizmo, grupos, lista de camadas |

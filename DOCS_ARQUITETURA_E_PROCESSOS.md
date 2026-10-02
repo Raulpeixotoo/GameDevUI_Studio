@@ -116,6 +116,7 @@ Uma imagem de referência (mockup) fica atrás da cena, com opacidade ajustável
 | Ctrl+Shift+V com imagem (R5) | Troca o ícone de todos os itens selecionados. Sem seleção, cria um item novo |
 | Ctrl+G / Ctrl+Shift+G | Agrupar / desagrupar |
 | Ctrl+E (R7) | Mesclar a seleção numa imagem |
+| Ctrl+Shift+L (R8) | Bloquear/desbloquear a seleção (também no botão de cadeado da barra das camadas, que fica aceso quando tudo está bloqueado) |
 | Soltar `.json` no canvas (R7) | Importar o layout para a cena (soma, não substitui) |
 | Ctrl+] / Ctrl+[ | Subir / descer uma camada |
 | Ctrl+Shift+] / Ctrl+Shift+[ | Trazer para a frente / enviar para o fundo |
@@ -366,6 +367,8 @@ Apelidos de tipo aceitos: `slot`; `botão`/`botao`/`button`/`btn`; `barra`/`bar`
 | `await Studio.paste()` (R4) | array | Cola a reserva (a mesma regra do Ctrl+V) e devolve os componentes novos |
 | `Studio.lang` / `Studio.tr(pt, en)` (R8) | texto | Idioma da interface e texto no idioma certo (base dos templates bilíngues) |
 | `Studio.autoAnchor(alvos)` (R8) | array | Âncora pela posição na cena, como o botão Auto |
+| `await Studio.batch(async () => {...})` (R8) | o retorno da função | Monta muita coisa sem redesenhar a cada peça nem mostrar toasts; um refresh no fim (aninhável). A Vitrine 4K monta 176 peças em ~150 ms |
+| `Studio.setResolution(w, h)` (R8) | `{width, height}` | Troca a resolução da cena (16–8192) sem reposicionar itens |
 | `Studio.safeArea` (R7) | objeto ou `null` | Área segura da resolução atual `{top, right, bottom, left}` em px (só presets mobile) |
 | `Studio.toScript(alvos?, opts)` (R7) | texto | Código que recria os alvos (sem alvo: seleção; sem seleção: cena). `opts`: `relative` (padrão `true`), `icons: 'embed' \| 'omit'`. Regras no 2.8 |
 | `await Studio.merge(alvos)` (R7) | componente ou `null` | Mescla numa imagem só, como o Ctrl+E |
@@ -434,6 +437,7 @@ Forma:     shapeKind(star|polygon|ellipse|arrow) shapeSides(3-12) shapeInnerRati
 
 ### 3.7 Templates
 - **Prontos:** Upgrade Stats, Grid Inventário 4x4, HUD RPG, Hotbar 1–8, Pintar Botões Dourado, Distribuir Horizontal.
+- **🏆 Vitrine 4K (R8):** HUD de RPG sci-fantasia em 3840×2160 (desenhado em unidades de 1080p × 2) que usa quase todo recurso: os 7 tipos, as 6 bordas, chanfro, gradientes (4 direções), sombras, textura CRT, 15 ícones SVG, rotação, as 12 fontes, estados de botão, `createGrid`, `batch`, âncoras por bloco e grupos numerados. Como a boas-vindas, é uma função de verdade (`src/js/06b-showcase-scene.js`) e o preset mostra o corpo dela. Pacote ZIP dela: 8,6 s, 827 arquivos, 64 MB (dado para decidir export em Web Worker e textura compartilhada dos componentes).
 - **Bilíngues (R8):** todos usam `Studio.tr('PT', 'EN')`, então geram nomes, textos e grupos no idioma da interface. Se o último script rodado foi um template **sem edição** e a cena não mudou desde então, trocar PT ⇄ EN volta ao estado de antes e roda o template de novo no outro idioma (como a cena de boas-vindas). Mexer na cena ou no código desliga isso.
 - **Do usuário:** "💾 Salvar como template" guarda o código do editor com um nome. Os templates aparecem em "Meus templates" (clique carrega, × exclui).
 - **Compartilhar:** Exportar gera `devui_script_templates.json` (`{format: "devui-script-templates", version: 1, templates: [{name, code, createdAt}]}`). Importar mescla por nome.
@@ -618,7 +622,7 @@ A v5 (R4) só acrescenta campos: `godot` no topo, e `godotSettings` e `engines` 
 
 **Outras engines:** GameMaker (Nine Slice no editor de sprite), Defold (`slice9` do nó de GUI) e Phaser (`NineSlice`) usam os valores de `engines`. libGDX/MonoGame (`NinePatch`) e Construct 3 (9-patch) usam `nineSlice` direto, em px.
 
-**Não automatizável:** a Unreal não permite gerar `.uasset` fora do editor. Um script Python do editor que leia o manifest está no roadmap. A importação ainda **não foi validada em projetos reais** das engines (Unity, Unreal e Godot); isso depende do autor ou da comunidade.
+**Não automatizável:** a Unreal não permite gerar `.uasset` fora do editor. Um script Python do editor que leia o manifest está no roadmap. **Validação em projeto real:** a Godot foi validada pelo autor na versão 4.7 (30/09/2026), seguindo o roteiro do 4.6. Unity e Unreal ainda **não foram validadas**; isso depende do autor ou da comunidade.
 
 ---
 
@@ -712,15 +716,17 @@ Uma entrega está pronta quando os dois checklists passaram, a documentação fo
 | R4 | Anel sempre nascia com "75" no centro, e o número não acompanhava o valor | O preset gravava `text: '75'` fixo | Opção "Mostrar valor no centro" (`ringShowValue`): o número vem de `ringValue` no desenho; desligada, o anel fica sem texto |
 | R6 | JSON de layout de terceiros podia injetar HTML (XSS) e travar a aba | `normalizeComponent` só completava campos ausentes, sem checar tipo; as snap lines montam `<line>` por `innerHTML` com as coordenadas; resolução aceitava qualquer valor | `sanitizeProjectData` + tipagem em `normalizeComponent`, imagens só `data:image/`, resolução 16–8192, limite de 50 MB |
 | R7 | Barra superior poluída e cortada em 1366 px (Exportar e idioma fora da tela) | 8 grupos com estilos diferentes; Res, formato, resolução e 3 botões de export disputando a mesma linha | Grid de 3 zonas (arquivo/inserir, cena, visualização/export) com `.tb-group`/`.tb-btn`; export num menu único. `tests/test-topbar.mjs` mede o estouro em 1280/1366/1920 px |
+| R8 | Ícones da barra das camadas saíam para fora do painel; sem botão de bloquear (relatado pelo autor) | Título de 2 linhas e 7 botões na mesma linha; o botão de desagrupar usava um ícone de cadeado, que parecia ser o bloqueio | Título numa linha e barra própria com 8 ações de 20 px (cabe em 200 px); ícone de desagrupar = pasta com "−"; botão de bloquear a seleção + Ctrl+Shift+L. `tests/test-layers-toolbar.mjs` mede 200/256/480 px |
 | R8 | Botões −, +, Fit e 1:1 da barra não faziam nada (relatado pelo autor) | Os botões existiam no HTML e nas constantes do JS, mas nenhum listener ligava eles; `setZoom` não tinha chamadas. Nenhum teste cobria | Listeners religados (zoom a partir do centro), atalhos Shift+1/Shift+0/Ctrl±, e 4 verificações em `test-topbar.mjs` |
 | R7 | Alça do painel esquerdo não pegava o clique (achado no teste) | A régua vertical do viewport tinha o mesmo `z-30` e vinha depois no DOM, cobrindo metade da alça | Alças em `z-[35]` |
 | R7 | Seletor de resolução alargava a barra em 1280 px (achado no teste) | Opção "Personalizada" com texto longo define a largura do `<select>` | Personalizada vira um `<optgroup>` próprio com o texto só "W×H"; rótulo "Snap" some abaixo de 1400 px |
+| R8 | Teste "fiel ao PNG: Barra" do export SVG falhava (média 5,21, 2,54% de pixels muito diferentes, Chrome 154) | Não era a Barra: era a borda `glow`. Na franja externa do brilho o alpha é 1/255 e o RGB é ruído de arredondamento (PNG `255,0,0,1` × SVG `0,0,0,1`); o teste comparava o RGB cru e contava 255 de diferença num pixel invisível. Com borda sólida ou sem borda a diferença era 0 | `__diff` em `test-export-svg.mjs` compara a cor pré-multiplicada pelo alpha. O exportador não mudou |
 | R3 | Régua vertical com 10 px de altura (achado nos testes antes da entrega) | `<canvas>` absoluto com `top`+`bottom` não estica: usa a altura intrínseca | Largura/altura explícitas com `calc(100% - 1.25rem)` |
 
 ### 5.8 Limitações e pendências conhecidas
 - Funciona só com internet no primeiro carregamento (JSZip e fontes via CDN).
 - Autosave é por navegador e não sincroniza duas abas no mesmo projeto: a última a gravar vence.
-- Import na Unity, na Unreal e na Godot ainda não validado em projeto real.
+- Import na Unity e na Unreal ainda não validado em projeto real (Godot 4.7 validada pelo autor em 30/09/2026).
 - Godot: o Anel sai como imagem simples (sem `TextureProgressBar` radial) e as fontes do Google não vão junto.
 - Edição livre de pontos e curvas (pen tool) está fora do escopo atual.
 

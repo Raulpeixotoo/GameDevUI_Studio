@@ -110,6 +110,9 @@
       } else if (mod && !e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         mergeSelection();
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        toggleLockSelection();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         if (e.shiftKey) {

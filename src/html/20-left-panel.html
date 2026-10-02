@@ -36,29 +36,34 @@
         </div>
       </div>
 
-      <div class="p-2.5 border-b border-figma-border flex items-center justify-between">
-        <span class="text-xs font-semibold uppercase tracking-wider text-zinc-300" data-i18n>Camadas da Cena</span>
-        <div class="flex items-center gap-1">
-          <button id="btnLayerUp" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white" title="Trazer para frente (Ctrl+])" data-i18n-title>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+      <!-- Camadas (R8): título numa linha e as 8 ações numa barra própria, distribuídas na largura
+           (cabem no painel na largura mínima de 200 px) -->
+      <div class="px-2.5 pt-2.5 pb-2 border-b border-figma-border space-y-2">
+        <span class="block text-xs font-semibold uppercase tracking-wider text-zinc-300 truncate" data-i18n>Camadas da Cena</span>
+        <div id="layerToolbar" class="flex items-center justify-between bg-zinc-950/60 border border-figma-border rounded-md px-1 py-0.5">
+          <button id="btnLayerUp" class="layer-tool" title="Trazer para frente (Ctrl+])" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
           </button>
-          <button id="btnLayerDown" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white" title="Enviar para trás (Ctrl+[)" data-i18n-title>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <button id="btnLayerDown" class="layer-tool" title="Enviar para trás (Ctrl+[)" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </button>
-          <button id="btnGroupLayers" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-amber-400" title="Agrupar selecionados (Ctrl+G)" data-i18n-title>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+          <button id="btnGroupLayers" class="layer-tool hover:!text-amber-400" title="Agrupar selecionados (Ctrl+G)" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2zM12 11v5M9.5 13.5h5"/></svg>
           </button>
-          <button id="btnUngroupLayers" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-amber-400" title="Desagrupar (Ctrl+Shift+G)" data-i18n-title>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+          <button id="btnUngroupLayers" class="layer-tool hover:!text-amber-400" title="Desagrupar (Ctrl+Shift+G)" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2zM9.5 13.5h5"/></svg>
           </button>
-          <button id="btnMergeLayers" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-cyan-400" title="Mesclar em uma imagem (Ctrl+E)" data-i18n-title>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6l8 4 8-4-8-4-8 4zM4 12l8 4 8-4M4 18l8 4 8-4"/></svg>
+          <button id="btnLockLayers" class="layer-tool" title="Bloquear / desbloquear seleção (Ctrl+Shift+L): o clique no canvas atravessa itens bloqueados" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M8 11V7a4 4 0 018 0v4"/></svg>
           </button>
-          <button id="btnDuplicateLayer" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white" title="Duplicar (Ctrl+D)" data-i18n-title>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+          <button id="btnMergeLayers" class="layer-tool hover:!text-cyan-400" title="Mesclar em uma imagem (Ctrl+E)" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6l8 4 8-4-8-4-8 4zM4 12l8 4 8-4M4 18l8 4 8-4"/></svg>
           </button>
-          <button id="btnDeleteLayer" class="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-red-400" title="Excluir (Del)" data-i18n-title>
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <button id="btnDuplicateLayer" class="layer-tool" title="Duplicar (Ctrl+D)" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg>
+          </button>
+          <button id="btnDeleteLayer" class="layer-tool hover:!text-red-400" title="Excluir (Del)" data-i18n-title>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
           </button>
         </div>
       </div>

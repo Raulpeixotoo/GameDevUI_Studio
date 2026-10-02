@@ -248,6 +248,7 @@
 
     function renderLayersList() {
       if (renderSuspended) return;
+      updateLockButton();
       layersList.innerHTML = '';
       const totalComps = state.components.length;
       const groupCount = state.groups.length;

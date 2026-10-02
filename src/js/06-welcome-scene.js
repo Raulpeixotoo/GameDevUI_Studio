@@ -405,11 +405,15 @@
       return tr('🎉 Cena de Boas-Vindas criada!', '🎉 Welcome Scene created!');
     }
 
-    // Texto do preset: o corpo da função acima, sem a indentação do arquivo.
-    function welcomeScenePresetCode() {
-      const src = welcomeSceneScript.toString();
+    // Texto de um preset que é uma função de verdade: o corpo dela, sem a indentação do arquivo.
+    function presetCodeFrom(fn) {
+      const src = fn.toString();
       return src.slice(src.indexOf('{') + 1, src.lastIndexOf('}'))
         .split('\n').map(line => line.replace(/^ {6}/, '')).join('\n').trim() + '\n';
+    }
+
+    function welcomeScenePresetCode() {
+      return presetCodeFrom(welcomeSceneScript);
     }
 
     // Trocar PT ⇄ EN refaz a cena de boas-vindas enquanto ninguém mexeu nela. A assinatura (hash do

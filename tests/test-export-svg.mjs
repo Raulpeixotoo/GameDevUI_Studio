@@ -23,7 +23,10 @@ const HELPERS = `
     const da = a.getImageData(0, 0, W, H).data, db = b.getImageData(0, 0, W, H).data;
     let sum = 0, bad = 0, ink = 0;
     for (let i = 0; i < da.length; i += 4) {
-      const d = Math.max(Math.abs(da[i] - db[i]), Math.abs(da[i + 1] - db[i + 1]), Math.abs(da[i + 2] - db[i + 2]), Math.abs(da[i + 3] - db[i + 3]));
+      // Cor pré-multiplicada pelo alpha: na franja de um brilho (alpha 1/255) o RGB é ruído de
+      // arredondamento que ninguém vê, e comparado cru acusava "255 de diferença".
+      const pa = da[i + 3] / 255, pb = db[i + 3] / 255;
+      const d = Math.max(Math.abs(da[i] * pa - db[i] * pb), Math.abs(da[i + 1] * pa - db[i + 1] * pb), Math.abs(da[i + 2] * pa - db[i + 2] * pb), Math.abs(da[i + 3] - db[i + 3]));
       sum += d; if (d > 48) bad++; if (da[i + 3] > 0) ink++;
     }
     return { mean: +(sum / (W * H)).toFixed(2), bad: +(bad / (W * H) * 100).toFixed(2), ink };

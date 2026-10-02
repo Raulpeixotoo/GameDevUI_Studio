@@ -59,6 +59,28 @@
     btnDuplicateLayer.addEventListener('click', duplicateCurrentComponent);
     btnDeleteLayer.addEventListener('click', deleteCurrentComponent);
 
+    // Bloquear/desbloquear a seleção (R8, Ctrl+Shift+L como no Figma). Se todos já estão
+    // bloqueados, desbloqueia; senão bloqueia todos. Item bloqueado: o clique no canvas atravessa.
+    const btnLockLayers = document.getElementById('btnLockLayers');
+    function toggleLockSelection() {
+      const sel = getSelectedComponents();
+      if (sel.length === 0) {
+        showToast('Selecione ao menos 1 item para bloquear.');
+        return;
+      }
+      const lock = !sel.every(c => c.locked);
+      sel.forEach(c => { c.locked = lock; });
+      renderLayersList();
+      renderScene();
+      showToast(t(lock ? '{n} item(ns) bloqueado(s): o clique no canvas atravessa.' : '{n} item(ns) desbloqueado(s).', { n: sel.length }));
+    }
+    // Chamado pelo renderLayersList (arquivo 09), que pode rodar antes deste arquivo: busca o botão na hora.
+    function updateLockButton() {
+      const sel = getSelectedComponents();
+      document.getElementById('btnLockLayers').classList.toggle('active', sel.length > 0 && sel.every(c => c.locked));
+    }
+    btnLockLayers.addEventListener('click', toggleLockSelection);
+
     btnClearAll.addEventListener('click', () => {
       if (state.components.length === 0) return;
       if (!confirm(t('Remover todos os {n} componentes da cena? (Ctrl+Z desfaz)', { n: state.components.length }))) return;

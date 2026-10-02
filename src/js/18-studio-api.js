@@ -199,9 +199,37 @@
         : t('Sem seleção: script da cena inteira no editor.'));
     }
 
+    let batchDepth = 0; // Studio.batch aninhado só redesenha quando o mais externo termina
+
     const Studio = {
       get canvas() {
         return { width: state.canvasWidth, height: state.canvasHeight };
+      },
+
+      // Monta muita coisa de uma vez: sem redesenhar a cada peça e sem toasts; um refresh no fim.
+      // Ex.: await Studio.batch(async () => { ...centenas de Studio.create... })
+      async batch(fn) {
+        batchDepth++;
+        renderSuspended = true;
+        toastMuted = true;
+        try {
+          return await fn();
+        } finally {
+          if (--batchDepth === 0) {
+            renderSuspended = false;
+            toastMuted = false;
+            refreshAll();
+          }
+        }
+      },
+
+      // Troca a resolução da cena sem reposicionar os itens (as âncoras só agem na troca pelo seletor).
+      setResolution(width, height) {
+        const w = Math.round(Number(width)), h = Math.round(Number(height));
+        if (!(w >= 16 && w <= 8192 && h >= 16 && h <= 8192)) throw new Error('Resolução fora de 16–8192 / resolution out of range.');
+        applyCanvasResolution(`${w}x${h}`);
+        fitCanvasToViewport();
+        return { width: w, height: h };
       },
 
       // Idioma da interface ('pt' | 'en') e tradução inline para scripts e templates bilíngues.

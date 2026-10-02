@@ -310,6 +310,7 @@ console.log(sel.length + tr(' itens distribuídos.', ' items distributed.'));`
     });
 
     SCRIPT_PRESETS.welcome = welcomeScenePresetCode();
+    SCRIPT_PRESETS.showcase4k = showcaseScenePresetCode();
 
     document.querySelectorAll('.script-preset-btn').forEach(btn => {
       btn.addEventListener('click', () => {
